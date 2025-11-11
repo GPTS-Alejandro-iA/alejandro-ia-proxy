@@ -1,83 +1,60 @@
-// index.mjs
+// index.mjs — Servidor proxy de Alejandro iA
 import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import OpenAI from "openai";
-import fetch from "node-fetch"; // solo si necesitas llamar HubSpot con fetch
+import bodyParser from "body-parser";
+import fetch from "node-fetch";
 
-dotenv.config();
 const app = express();
-app.use(cors()); // permite llamadas desde tu Shopify (orígenes)
-app.use(express.json({ limit: "200kb" }));
+app.use(bodyParser.json());
 
-const PORT = process.env.PORT || 10000;
-const OPENAI_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1";
-const ASSISTANT_ID = process.env.ASSISTANT_ID || ""; // opcional
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const ASSISTANT_ID = "asst_fUNT2sPlWS7LYmNqrU9uHKoU";
 
-if (!OPENAI_KEY) {
-  console.error("❌ Falta OPENAI_API_KEY en env");
-  process.exit(1);
-}
-
-const openai = new OpenAI({ apiKey: OPENAI_KEY });
-
-/**
- * UTIL: prompt maestro (puedes reemplazar por usar ASSISTANT_ID flow)
- * Si usas Assistant ID, verás abajo la alternativa breve.
- */
-const PROMPT_MAESTRO = (extra = "") => `
-PROMPT MAESTRO — ALEJANDRO iA | GREEN POWER TECH STORE
-${extra}
-`;
-
-/**
- * Endpoint principal: enviar mensaje -> devuelve respuesta de Alejandro iA
- * Body esperado: { message: "..." , name: "...", phone: "..." }
- */
+// Endpoint principal del chat
 app.post("/chat", async (req, res) => {
   try {
-    const { message, metadata } = req.body;
-    if (!message || typeof message !== "string") return res.status(400).json({ error: "Campo 'message' requerido" });
+    const { message } = req.body;
 
-    // --- Opción A: usar completions/chat completions con PROMPT MAESTRO ---
-    const messages = [
-      { role: "system", content: PROMPT_MAESTRO() },
-      { role: "user", content: message }
-    ];
-
-    // Llamada a OpenAI (Chat Completions)
-    const completion = await openai.chat.completions.create({
-      model: OPENAI_MODEL,
-      messages,
-      max_tokens: 700
-    });
-
-    const reply = completion.choices?.[0]?.message?.content?.trim() ?? "Lo siento, no obtuve respuesta.";
-
-    // --- Opcional: mandar lead / conversación a HubSpot o webhook ---
-    if (process.env.HUBSPOT_WEBHOOK_URL) {
-      // ejemplo simple: envía payload con mensaje, reply y metadata
-      fetch(process.env.HUBSPOT_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, reply, metadata, ts: Date.now() })
-      }).catch((e) => console.warn("⚠️ HubSpot webhook error:", e.message));
+    if (!message) {
+      return res.status(400).json({ error: "Falta el mensaje del usuario." });
     }
 
-    return res.json({ reply });
+    // Llamada al API de OpenAI para usar tu asistente Alejandro iA
+    const response = await fetch(`https://api.openai.com/v1/assistants/${ASSISTANT_ID}/responses`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        input: message
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Error en respuesta de OpenAI:", errorData);
+      return res.status(500).json({ error: "Error al conectar con Alejandro iA." });
+    }
+
+    const data = await response.json();
+
+    // Maneja salida según formato de API
+    const output = data.output_text || data.output || "Disculpa, tuve un problema técnico.";
+
+    console.log("💬 Cliente:", message);
+    console.log("🤖 Alejandro iA:", output);
+
+    res.json({ reply: output });
   } catch (error) {
-    console.error("Error /chat:", error?.message ?? error);
-    return res.status(500).json({ error: "Error interno" });
+    console.error("Error interno del servidor:", error);
+    res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-/**
- * ALTERNATIVA: Si quieres usar tu Assistant ID (la API de Assistants),
- * reemplaza la llamada anterior por un POST a:
- * POST https://api.openai.com/v1/assistants/{ASSISTANT_ID}/sessions
- * y luego enviar mensajes. (Si quieres, te doy el snippet exacto).
- */
+// Endpoint simple para verificar si el servidor corre
+app.get("/", (req, res) => {
+  res.send("🚀 Alejandro iA está corriendo correctamente en Render.");
+});
 
-app.get("/", (_, res) => res.send("Alejandro iA - proxy ok"));
-app.listen(PORT, () => console.log(`🚀 Proxy corriendo en puerto ${PORT}`));
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`🚀 Servidor de Alejandro iA corriendo en puerto ${PORT}`));
