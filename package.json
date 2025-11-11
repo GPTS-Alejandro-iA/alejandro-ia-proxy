@@ -1,21 +1,14 @@
 {
-  "name": "alejandro-ia-proxy",
+  "name": "alejandro-ia-webchat",
   "version": "1.0.0",
-  "description": "Servidor proxy de Alejandro iA - Green Power Tech Store",
-  "main": "index.mjs",
   "type": "module",
+  "main": "index.mjs",
   "scripts": {
     "start": "node index.mjs"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.0",
-    "body-parser": "^1.20.2",
-    "node-fetch": "^3.3.2",
-    "openai": "^4.67.3"
-  },
-  "engines": {
-    "node": ">=18"
+    "express": "^4.19.2",
+    "openai": "^4.56.0",
+    "dotenv": "^16.4.5"
   }
 }
