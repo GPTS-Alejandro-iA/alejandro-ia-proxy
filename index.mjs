@@ -1,60 +1,57 @@
-// index.mjs — Servidor proxy de Alejandro iA
 import express from "express";
 import bodyParser from "body-parser";
-import fetch from "node-fetch";
+import cors from "cors";
+import OpenAI from "openai";
 
 const app = express();
+const port = process.env.PORT || 10000;
+
+// Configura CORS para permitir conexión desde tu dominio de Shopify
+app.use(cors());
 app.use(bodyParser.json());
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const ASSISTANT_ID = "asst_fUNT2sPlWS7LYmNqrU9uHKoU";
+// Inicializa cliente OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  organization: process.env.OPENAI_ORG_ID, // opcional
+});
 
-// Endpoint principal del chat
+// Página principal
+app.get("/", (req, res) => {
+  res.send(`
+    <h1>🤖 Alejandro iA - Chatbot Web</h1>
+    <p>Endpoint operativo: <a href="/chat">/chat</a></p>
+  `);
+});
+
+// Endpoint del chat
 app.post("/chat", async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, thread_id } = req.body;
 
     if (!message) {
-      return res.status(400).json({ error: "Falta el mensaje del usuario." });
+      return res.status(400).json({ error: "Falta el campo 'message'" });
     }
 
-    // Llamada al API de OpenAI para usar tu asistente Alejandro iA
-    const response = await fetch(`https://api.openai.com/v1/assistants/${ASSISTANT_ID}/responses`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        input: message
-      })
+    // Crea o continúa un hilo con el asistente
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1",
+      messages: [
+        { role: "system", content: "Eres Alejandro iA, un asesor experto en energía solar y atención al cliente de Green Power Tech Store." },
+        { role: "user", content: message }
+      ]
     });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error("Error en respuesta de OpenAI:", errorData);
-      return res.status(500).json({ error: "Error al conectar con Alejandro iA." });
-    }
+    const reply = response.choices[0].message.content;
+    res.json({ reply });
 
-    const data = await response.json();
-
-    // Maneja salida según formato de API
-    const output = data.output_text || data.output || "Disculpa, tuve un problema técnico.";
-
-    console.log("💬 Cliente:", message);
-    console.log("🤖 Alejandro iA:", output);
-
-    res.json({ reply: output });
   } catch (error) {
-    console.error("Error interno del servidor:", error);
-    res.status(500).json({ error: "Error interno del servidor." });
+    console.error("Error en /chat:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
-// Endpoint simple para verificar si el servidor corre
-app.get("/", (req, res) => {
-  res.send("🚀 Alejandro iA está corriendo correctamente en Render.");
+// Inicia servidor
+app.listen(port, () => {
+  console.log(`🚀 Servidor de Alejandro iA corriendo en puerto ${port}`);
 });
-
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Servidor de Alejandro iA corriendo en puerto ${PORT}`));
