@@ -59,3 +59,56 @@ app.post('/chat', async (req, res) => {
     const response = await fetch(`https://api.openai.com/v1/assistants/${ASSISTANT_ID}/message`, {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        input: [{ role: 'user', content: userMessage }]
+      })
+    });
+
+    const data = await response.json();
+    let reply = data.output?.[0]?.content?.[0]?.text || "Lo siento, hubo un error al responder.";
+
+    // Detectar si el usuario ya compartió nombre y teléfono
+    const nameMatch = userMessage.match(/Nombre:?\s*(.+)/i);
+    const phoneMatch = userMessage.match(/Tel[eé]fono:?\s*(.+)/i);
+
+    if (nameMatch && phoneMatch) {
+      const lead = {
+        name: nameMatch[1].trim(),
+        phone: phoneMatch[1].trim()
+      };
+      // Optional: dirección, email, mensaje
+      const addressMatch = userMessage.match(/Direcci[oó]n:?\s*(.+)/i);
+      const emailMatch = userMessage.match(/Email:?\s*(.+)/i);
+      const messageMatch = userMessage.match(/Mensaje:?\s*(.+)/i);
+
+      if (addressMatch) lead.address = addressMatch[1].trim();
+      if (emailMatch) lead.email = emailMatch[1].trim();
+      if (messageMatch) lead.message = messageMatch[1].trim();
+
+      await send_lead(lead);
+
+      if (lead.email) {
+        await send_email({
+          to: lead.email,
+          subject: 'Gracias por contactarnos - Green Power Tech Store',
+          text: `Hola ${lead.name}, gracias por tu interés. Alejandro iA está preparando tu cotización personalizada.`
+        });
+      }
+
+      reply += "\n\n✅ Tu información ha sido registrada con éxito. Alejandro iA te guiará a continuación.";
+    }
+
+    res.json({ reply });
+
+  } catch (err) {
+    console.error('Error /chat:', err);
+    res.json({ reply: "⚠️ Error de conexión con OpenAI." });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT,
+           }     
