@@ -1,231 +1,169 @@
 import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
-import fetch from "node-fetch";
-import nodemailer from "nodemailer";
+import OpenAI from "openai";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const ASSISTANT_ID = process.env.ASSISTANT_ID;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-/* ---------------------------------------------------------
-   CLIENTE DE OPENAI (Threads + Runs)
---------------------------------------------------------- */
-async function callOpenAI(messages, threadId = null) {
+// ===== OPENAI CLIENT =====
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+// ===== SERVE CHAT UI =====
+app.get("/chat-ui", (req, res) => {
+  res.sendFile(path.join(__dirname, "chat.html"));
+});
+
+app.get("/", (req, res) => {
+  res.send("Servidor activo. Entra a /chat-ui");
+});
+
+// ========== MAIN CHAT ENDPOINT ==========
+app.post("/chat", async (req, res) => {
   try {
-    const thread = threadId
-      ? { id: threadId }
-      : await fetch("https://api.openai.com/v1/threads", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${OPENAI_API_KEY}`
-          }
-        }).then(res => res.json());
+    const { message, threadId } = req.body;
 
-    await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        role: "user",
-        content: messages[0].content
-      })
-    });
+    let finalThreadId = threadId;
 
-    const runRes = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        assistant_id: ASSISTANT_ID
-      })
-    });
-
-    const run = await runRes.json();
-
-    let runStatus = run.status;
-    while (runStatus !== "completed" && runStatus !== "failed") {
-      await new Promise(r => setTimeout(r, 1000));
-      const statusRes = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`, {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`
-        }
-      });
-      const statusData = await statusRes.json();
-      runStatus = statusData.status;
+    // Create a thread if none exists
+    if (!finalThreadId) {
+      const thread = await client.beta.threads.create();
+      finalThreadId = thread.id;
     }
 
-    const messagesRes = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`
-      }
+    // Add user message to thread
+    await client.beta.threads.messages.create(finalThreadId, {
+      role: "user",
+      content: message
     });
 
-    const messagesData = await messagesRes.json();
-    const lastMessage = messagesData.data[0];
-    const text = lastMessage.content[0].text.value;
+    // Run the assistant
+    const run = await client.beta.threads.runs.create(finalThreadId, {
+      assistant_id: process.env.OPENAI_ASSISTANT_ID
+    });
 
-    return { reply: text, threadId: thread.id };
-  } catch (error) {
-    console.error("❌ Error llamando a OpenAI:", error);
-    return { error };
-  }
-}
+    // Wait until the assistant completes the run
+    let runStatus = await client.beta.threads.runs.retrieve(finalThreadId, run.id);
 
-/* ---------------------------------------------------------
-   ENVÍO DE LEAD A HUBSPOT
---------------------------------------------------------- */
-async function sendToHubSpot({ name, email, phone, message }) {
-  try {
-    console.log("\n🟧 Enviando lead a HubSpot…");
+    while (runStatus.status === "queued" || runStatus.status === "in_progress") {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      runStatus = await client.beta.threads.runs.retrieve(finalThreadId, run.id);
+    }
 
-    const response = await fetch("https://api.hubapi.com/crm/v3/objects/contacts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.HUBSPOT_API_KEY}`
-      },
-      body: JSON.stringify({
-        properties: {
-          email,
-          firstname: name || "",
-          phone: phone || "",
-          message: message || ""
+    // If assistant is calling a function
+    if (runStatus.required_action?.type === "submit_tool_outputs") {
+      const toolCalls = runStatus.required_action.submit_tool_outputs.tool_calls;
+
+      const toolOutputs = [];
+
+      for (const call of toolCalls) {
+        const fnName = call.function.name;
+        const args = JSON.parse(call.function.arguments);
+
+        console.log("🛠 Ejecutando función:", fnName, args);
+
+        if (fnName === "send_lead") {
+          await sendLeadToHubSpot(args);
+          toolOutputs.push({
+            tool_call_id: call.id,
+            output: JSON.stringify({ ok: true })
+          });
         }
-      })
-    });
 
-    const result = await response.json();
-    console.log("🟩 HubSpot respondió:", result);
+        if (fnName === "send_email") {
+          await sendEmailToClient(args);
+          toolOutputs.push({
+            tool_call_id: call.id,
+            output: JSON.stringify({ ok: true })
+          });
+        }
+      }
 
-    return result;
-  } catch (error) {
-    console.error("❌ Error enviando a HubSpot:", error);
-    return { error };
-  }
-}
+      // Send results back
+      await client.beta.threads.runs.submitToolOutputs(
+        finalThreadId,
+        run.id,
+        { tool_outputs: toolOutputs }
+      );
 
-/* ---------------------------------------------------------
-   ENVÍO DE EMAIL VIA GMAIL
---------------------------------------------------------- */
-const transporter = nodemailer.createTransport({
-  service: "Gmail",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
-});
+      // Retrieve assistant final message
+      const messages = await client.beta.threads.messages.list(finalThreadId);
+      const lastAssistantMessage = messages.data.find(m => m.role === "assistant");
 
-async function sendEmail({ to, subject, text }) {
-  try {
-    console.log("\n🟧 Enviando email a:", to);
+      return res.json({
+        threadId: finalThreadId,
+        reply: lastAssistantMessage.content[0].text.value
+      });
+    }
 
-    const info = await transporter.sendMail({
-      from: process.env.SMTP_USER,
-      to,
-      subject,
-      text
-    });
+    // Normal assistant message (no functions)
+    const messages = await client.beta.threads.messages.list(finalThreadId);
+    const lastAssistantMessage = messages.data.find(m => m.role === "assistant");
 
-    console.log("🟩 Email enviado:", info);
-    return info;
-  } catch (error) {
-    console.error("❌ Error enviando email:", error);
-    return { error };
-  }
-}
-
-/* ---------------------------------------------------------
-   RUTA PRINCIPAL DEL CHAT
---------------------------------------------------------- */
-app.post("/chat", async (req, res) => {
-  const { userMessage, threadId } = req.body;
-
-  console.log("\n🟨 MENSAJE RECIBIDO DEL CLIENTE:", userMessage);
-
-  const aiResponse = await callOpenAI([{ role: "user", content: userMessage }], threadId);
-
-  if (!aiResponse || aiResponse.error) {
     return res.json({
-      reply: "Hubo un error hablando con Alejandro iA."
+      threadId: finalThreadId,
+      reply: lastAssistantMessage.content[0].text.value
     });
+
+  } catch (err) {
+    console.error("❌ Error:", err);
+    res.status(500).json({ error: err.message });
   }
+});
 
-  return res.json({
-    reply: aiResponse.reply,
-    threadId: aiResponse.threadId
+// ====== HUBSPOT FUNCTION ======
+async function sendLeadToHubSpot({ name, email, phone, message }) {
+  const url = "https://api.hubapi.com/crm/v3/objects/contacts";
+
+  const payload = {
+    properties: {
+      email,
+      firstname: name || "",
+      phone: phone || "",
+      message: message || ""
+    }
+  };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.HUBSPOT_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
   });
-});
 
-/* ---------------------------------------------------------
-   INTERFAZ FRONTEND /chat-ui
---------------------------------------------------------- */
-app.get("/chat-ui", (req, res) => {
-  res.send(`
-  <html>
-  <head>
-    <title>Alejandro iA</title>
-    <style>
-      body { font-family: Arial; padding: 30px; }
-      #chat { width: 100%; max-width: 600px; margin: auto; }
-      textarea { width: 100%; height: 100px; }
-      .msg { margin-bottom: 10px; }
-    </style>
-  </head>
-  <body>
-    <h2>Chat con Alejandro iA</h2>
-    <div id="chat"></div>
+  console.log("HubSpot status:", response.status);
+}
 
-    <textarea id="input"></textarea>
-    <button onclick="send()">Enviar</button>
+// ===== EMAIL FUNCTION =====
+import nodemailer from "nodemailer";
 
-    <script>
-      let threadId = null;
+async function sendEmailToClient({ to, subject, text }) {
+  let transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.SMTP_EMAIL,
+      pass: process.env.SMTP_PASSWORD
+    }
+  });
 
-      async function send() {
-        const text = document.getElementById("input").value;
-        addMsg("Tú: " + text);
+  await transporter.sendMail({
+    from: process.env.SMTP_EMAIL,
+    to,
+    subject,
+    text
+  });
 
-        const res = await fetch("/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userMessage: text, threadId })
-        });
+  console.log("📨 Email enviado a:", to);
+}
 
-        const data = await res.json();
-        threadId = data.threadId;
-        addMsg("Alejandro: " + data.reply);
-      }
-
-      function addMsg(msg) {
-        const div = document.getElementById("chat");
-        div.innerHTML += "<div class='msg'>" + msg + "</div>";
-      }
-    </script>
-  </body>
-  </html>
-  `);
-});
-
-/* ---------------------------------------------------------
-   RUTA RAÍZ /
---------------------------------------------------------- */
-app.get("/", (req, res) => {
-  res.redirect("/chat-ui");
-});
-
-/* ---------------------------------------------------------
-   SERVIDOR ONLINE
---------------------------------------------------------- */
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("🚀 Servidor corriendo en puerto", PORT));
+app.listen(3000, () => console.log("Servidor corriendo en el puerto 3000"));
