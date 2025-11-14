@@ -79,7 +79,6 @@ app.post('/chat', async (req, res) => {
         name: nameMatch[1].trim(),
         phone: phoneMatch[1].trim()
       };
-      // Optional: dirección, email, mensaje
       const addressMatch = userMessage.match(/Direcci[oó]n:?\s*(.+)/i);
       const emailMatch = userMessage.match(/Email:?\s*(.+)/i);
       const messageMatch = userMessage.match(/Mensaje:?\s*(.+)/i);
@@ -110,5 +109,4 @@ app.post('/chat', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT,
-           }     
+app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
