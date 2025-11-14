@@ -1,16 +1,22 @@
 import express from 'express';
-import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 
-// Configuración de Nodemailer para Gmail
+// Configuración de nodemailer para Gmail
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -19,74 +25,63 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Función para enviar correo
-async function sendEmail(to, subject, text) {
-  try {
-    await transporter.sendMail({ from: process.env.GMAIL_USER, to, subject, text });
-    console.log(`Correo enviado a ${to}`);
-  } catch (err) {
-    console.error("Error enviando correo:", err);
-  }
-}
+// Ruta principal para enviar mensajes al chat
+app.post('/chat', async (req, res) => {
+  const { message, name, email, phone, address, bestTime } = req.body;
 
-// Función para enviar lead a HubSpot
-async function sendLeadToHubspot({ name, email, phone, message }) {
+  if (!message || !name || !email || !phone) {
+    return res.status(400).json({ success: false, reply: 'Faltan datos obligatorios.' });
+  }
+
+  // 1️⃣ Enviar lead a HubSpot
   try {
-    const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
+    await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.HUBSPOT_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.HUBSPOT_ACCESS_TOKEN}`
       },
       body: JSON.stringify({
-        properties: { firstname: name, email, phone, message }
+        properties: {
+          email,
+          firstname: name.split(' ')[0],
+          lastname: name.split(' ').slice(1).join(' ') || '-',
+          phone,
+          address,
+          best_time_to_call: bestTime || ''
+        }
       })
     });
-    const data = await res.json();
-    console.log("Lead enviado a HubSpot:", data);
   } catch (err) {
-    console.error("Error enviando lead a HubSpot:", err);
+    console.error('Error enviando lead a HubSpot:', err);
+    return res.json({ success: false, reply: 'No se pudo enviar el lead a HubSpot.' });
   }
-}
 
-// Ruta principal
-app.get('/', (req, res) => res.sendFile(`${process.cwd()}/public/index.html`));
-
-// Manejo de mensajes del chat
-app.post('/chat', async (req, res) => {
-  const { message, name, email, phone } = req.body;
-
-  if (!message) return res.json({ reply: "No se recibió mensaje." });
-
+  // 2️⃣ Generar respuesta de Alejandro iA vía OpenAI
+  let aiReply = '';
   try {
-    // Llamada a la API de OpenAI
-    const response = await fetch('https://api.openai.com/v1/responses', {
+    const response = await fetch('https://api.openai.com/v1/assistants/' + process.env.ASSISTANT_ID + '/message', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        assistant: process.env.ASSISTANT_ID,
-        input: message
+        input: [{ role: 'user', content: message }]
       })
     });
 
     const data = await response.json();
-    let reply = data.output?.[0]?.content?.[0]?.text || "Lo siento, hubo un error al responder.";
-
-    // Si el mensaje incluye datos del cliente, enviarlos a HubSpot y correo
-    if (name && email) {
-      await sendLeadToHubspot({ name, email, phone, message });
-      await sendEmail(email, "Gracias por tu interés en Green Power Tech", `Hola ${name},\n\nGracias por contactarnos. Pronto recibirás tu cotización y más información.\n\nSaludos,\nAlejandro iA`);
-    }
-
-    res.json({ reply });
-
+    aiReply = data.output?.[0]?.content?.[0]?.text || 'Lo siento, no pude generar respuesta.';
   } catch (err) {
-    console.error(err);
-    res.json({ reply: "Lo siento, ocurrió un error en el servidor." });
+    console.error('Error generando respuesta de AI:', err);
+    aiReply = 'Lo siento, hubo un error generando la respuesta.';
   }
-});
 
-app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+  // 3️⃣ Enviar cotización / email al cliente
+  try {
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to: email,
+      subject: 'Cotización de Green Power Tech',
+      text
