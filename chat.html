@@ -1,1 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alejandro iA - Chat Solar</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f5f5f5;
+      padding: 2rem;
+      max-width: 600px;
+      margin: auto;
+    }
+    h2 {
+      color: #007b5e;
+    }
+    #chatLog {
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 1rem;
+      height: 300px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+    }
+    input, button {
+      padding: 0.75rem;
+      font-size: 1rem;
+      width: 100%;
+      margin-bottom: 0.5rem;
+    }
+    button {
+      background-color: #007b5e;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #005f47;
+    }
+  </style>
+</head>
+<body>
+  <h2>💬 Alejandro iA está contigo</h2>
+  <p>Tu facilitador inteligente de Green Power Tech Store. Pregunta por nuestros sistemas solares fuera de la red, backups para apartamentos, o cómo decirle ¡Adiós LUMA!</p>
 
+  <div id="chatLog"></div>
+
+  <input id="userInput" placeholder="Escribe tu pregunta aquí..." />
+  <button onclick="sendMessage()">Enviar</button>
+
+  <script>
+    let threadId = null;
+
+    async function sendMessage() {
+      const input = document.getElementById("userInput");
+      const message = input.value.trim();
+      if (!message) return;
+
+      appendMessage("Tú", message);
+      input.value = "";
+
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, threadId })
+      });
+
+      const data = await res.json();
+      threadId = data.threadId;
+      appendMessage("Alejandro iA", data.reply);
+    }
+
+    function appendMessage(sender, text) {
+      const log = document.getElementById("chatLog");
+      const msg = document.createElement("p");
+      msg.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      log.appendChild(msg);
+      log.scrollTop = log.scrollHeight;
+    }
+  </script>
+</body>
+</html>
