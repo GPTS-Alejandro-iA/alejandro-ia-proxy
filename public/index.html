@@ -3,235 +3,189 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Soy Alejandro iA | Asesor Solar de Green Power Tech Store</title>
-  <meta name="description" content="Soy Alejandro iA, asesor solar virtual de Green Power Tech Store. Te ayudo a elegir tu sistema solar, calcular financiamiento, cotizar, recomendar productos y guiarte en tu compra.">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
-</head>
-
-<body style="background:#111;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">
-
-<div id="alejandro-chat" style="font-family: 'Poppins', sans-serif;">
+  <title>Alejandro iA - Chat Solar</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
   <style>
-    #alejandro-chat {
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background: #e5ddd5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .chat-container {
       width: 100%;
       max-width: 450px;
-      margin: auto;
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: 0 0 20px rgba(0,0,0,0.3);
-      background: linear-gradient(to bottom right, rgba(0,0,0,0.6), rgba(0,0,0,0.7)),
-                  url('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1500&q=80');
-      background-size: cover;
-      background-position: center;
+      height: 600px;
       display: flex;
       flex-direction: column;
-      height: 650px;
-      color: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
 
     .chat-header {
-      text-align: center;
-      padding: 14px 18px;
-      background: rgba(0,0,0,0.55);
+      background: #075e54;
+      color: white;
+      padding: 12px 16px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
-    .chat-header h1 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin: 0;
-      color: #00bcd4;
-    }
-
-    .chat-header p {
-      font-size: 0.78rem;
-      margin-top: 5px;
-      line-height: 1.3;
-      color: #eee;
-      opacity: 0.9;
+    .chat-header img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid white;
     }
 
     .chat-window {
       flex: 1;
+      padding: 16px;
       overflow-y: auto;
-      padding: 15px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.3) transparent;
+      gap: 10px;
+      background: #ece5dd;
     }
 
-    .msg {
-      padding: 8px 13px;
-      border-radius: 15px;
-      max-width: 85%;
-      line-height: 1.45;
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 20px;
+      max-width: 75%;
       word-wrap: break-word;
-      white-space: pre-wrap;
-      font-size: 0.87rem;
+      animation: fadeIn 0.2s;
     }
 
-    .msg.user {
-      align-self: flex-end;
-      background: #00bcd4;
+    .bubble.user {
+      background: #25d366;
       color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
     }
 
-    .msg.bot {
+    .bubble.bot {
+      background: #ffffff;
+      color: #000;
       align-self: flex-start;
-      background: rgba(255,255,255,0.1);
-      color: #fff;
-      backdrop-filter: blur(4px);
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
-    .msg.bot a {
-      color: #00bcd4;
-      text-decoration: none;
-      font-weight: 600;
-      word-break: break-all;
-    }
-
-    .msg.bot a:hover {
-      text-decoration: underline;
-    }
-
-    .highlight-price {
-      color: #7CFC00;
-      font-weight: 700;
-    }
-
-    .highlight-payment {
-      color: #00FFB3;
-      font-weight: 700;
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px);}
+      to { opacity: 1; transform: translateY(0);}
     }
 
     .chat-input {
       display: flex;
-      background: rgba(0,0,0,0.6);
       padding: 10px;
-      border-top: 1px solid rgba(255,255,255,0.1);
+      background: #f0f0f0;
+      border-top: 1px solid #ccc;
     }
 
     .chat-input input {
       flex: 1;
-      border: none;
-      background: transparent;
-      color: white;
-      padding: 10px;
-      font-size: 0.9rem;
+      padding: 10px 14px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
       outline: none;
-    }
-
-    .chat-input input::placeholder {
-      color: #fff;
-      opacity: 0.8;
+      font-size: 0.95rem;
     }
 
     .chat-input button {
-      background: #00bcd4;
-      border: none;
-      padding: 8px 15px;
-      border-radius: 8px;
+      background: #075e54;
       color: white;
+      border: none;
+      border-radius: 50%;
+      width: 45px;
+      height: 45px;
+      margin-left: 10px;
+      font-size: 1.2rem;
       cursor: pointer;
-      font-weight: bold;
       transition: 0.2s;
-      font-size: 0.85rem;
     }
 
     .chat-input button:hover {
-      background: #00a2b5;
+      background: #064d46;
+    }
+
+    /* Scrollbar */
+    .chat-window::-webkit-scrollbar {
+      width: 6px;
+    }
+    .chat-window::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.2);
+      border-radius: 3px;
     }
 
     @media (max-width: 480px) {
-      .msg { font-size: 0.8rem; }
-      .chat-header h1 { font-size: 0.9rem; }
-      .chat-header p { font-size: 0.75rem; }
+      .chat-container { height: 100vh; border-radius: 0; }
+      .chat-input input { font-size: 0.9rem; }
+      .chat-header { font-size: 0.95rem; }
     }
   </style>
-
-  <div class="chat-header">
-    <h1>☀️ Soy Alejandro iA | Asesor Solar de Green Power Tech Store</h1>
-    <p>Puedo asesorarte, recomendar equipos, cotizar, calcular tu financiamiento y guiarte en tu compra o coordinar una cita con nuestro equipo.</p>
-  </div>
-
-  <div class="chat-window" id="chat-window">
-    <div class="msg bot">
-      ¡Hola! 👋 Soy <b>Alejandro iA</b>, tu asesor solar de <b>Green Power Tech Store</b>.<br><br>
-      Puedo ayudarte con:
-      <ul>
-        <li>🏡 Sistemas solares residenciales y comerciales</li>
-        <li>🔋 Sistemas de respaldo de alta capacidad</li>
-        <li>💳 Cálculo de financiamiento y pagos</li>
-        <li>🛒 Guía de compra en nuestra tienda online</li>
-      </ul>
-      Cuéntame, ¿en qué área te gustaría recibir orientación?
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <img src="https://greenpowertech.store/cdn/shop/files/Green_-4972-8295-4796a94961b7.png?v=1708225235" alt="Alejandro iA"/>
+      Alejandro iA
+    </div>
+    <div class="chat-window" id="chatWindow">
+      <div class="bubble bot">👋 ¡Hola! Soy Alejandro iA, tu asesor solar de Green Power Tech Store.  
+      Para ofrecerte orientación y preparar tu cotización, necesito tu nombre y teléfono.  
+      También puedes incluir dirección y mejor hora para llamarte.</div>
+    </div>
+    <div class="chat-input">
+      <input id="userInput" placeholder="Escribe un mensaje..." />
+      <button id="sendBtn">➤</button>
     </div>
   </div>
 
-  <div class="chat-input">
-    <input id="userInput" type="text" placeholder="Escribe tu mensaje aquí..." />
-    <button id="sendBtn">Enviar</button>
-  </div>
-
   <script>
-    const chatWindow = document.getElementById("chat-window");
-    const userInput = document.getElementById("userInput");
-    const sendBtn = document.getElementById("sendBtn");
+    const chatWindow = document.getElementById('chatWindow');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
 
-    function linkifyAndHighlight(text) {
-      // Enlaces clicables
-      text = text.replace(/(https?:\/\/[^\s)]+)/g, (url) => {
-        const cleanUrl = url.replace(/[),.]+$/, "");
-        const hostname = new URL(cleanUrl).hostname.replace("www.", "");
-        return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">🔗 ${hostname}</a>`;
-      });
-
-      // Resaltar precios y pagos
-      text = text.replace(/(\$\d[\d.,]*)/g, '<span class="highlight-price">$1</span>');
-      text = text.replace(/(\d+\/mes)/gi, '<span class="highlight-payment">$1</span>');
-
-      return text;
+    function appendMessage(type, text) {
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble ' + type;
+      bubble.innerText = text;
+      chatWindow.appendChild(bubble);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
     }
 
     async function sendMessage() {
-      const message = userInput.value.trim();
-      if (!message) return;
-
-      const userMsg = document.createElement("div");
-      userMsg.className = "msg user";
-      userMsg.textContent = message;
-      chatWindow.appendChild(userMsg);
-      chatWindow.scrollTop = chatWindow.scrollHeight;
-      userInput.value = "";
+      const msg = userInput.value.trim();
+      if (!msg) return;
+      appendMessage('user', msg);
+      userInput.value = '';
 
       try {
-        const response = await fetch("/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg })
         });
-
-        const data = await response.json();
-        const botMsg = document.createElement("div");
-        botMsg.className = "msg bot";
-        botMsg.innerHTML = linkifyAndHighlight(data.reply || "Lo siento, hubo un error al responder.");
-        chatWindow.appendChild(botMsg);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
-      } catch (error) {
-        const botMsg = document.createElement("div");
-        botMsg.className = "msg bot";
-        botMsg.textContent = "⚠️ Error de conexión con el servidor.";
-        chatWindow.appendChild(botMsg);
+        const data = await res.json();
+        appendMessage('bot', data.reply || 'Lo siento, hubo un error al responder.');
+      } catch (err) {
+        appendMessage('bot', '⚠️ Error de conexión con el servidor.');
       }
     }
 
-    sendBtn.addEventListener("click", sendMessage);
-    userInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keypress', e => {
+      if (e.key === 'Enter') sendMessage();
     });
   </script>
-</div>
-
 </body>
 </html>
