@@ -3,18 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#007b5e" />
   <title>Alejandro iA - Chat Solar</title>
 
   <style>
     body {
       margin: 0;
       font-family: "Segoe UI", sans-serif;
-      background: url('https://greenpowertech.store/cdn/shop/files/puerto-rico-solar-bg.jpg')
-        no-repeat center center fixed;
+      background: url('https://greenpowertech.store/cdn/shop/files/puerto-rico-solar-bg.jpg') no-repeat center center fixed;
       background-size: cover;
     }
 
-    /* Capa oscura suave para hacer todo más legible */
     .overlay {
       background-color: rgba(0, 0, 0, 0.55);
       position: fixed;
@@ -24,10 +23,9 @@
     .chat-box {
       max-width: 480px;
       margin: 0 auto;
-      padding-top: 20px;
+      padding: 20px;
     }
 
-    /* Header */
     .header {
       background: linear-gradient(135deg, #007b5e, #00a878);
       padding: 20px;
@@ -52,7 +50,6 @@
       font-weight: 700;
     }
 
-    /* Intro Text */
     .intro {
       margin-top: 12px;
       background-color: rgba(255,255,255,0.1);
@@ -64,7 +61,6 @@
       line-height: 1.4rem;
     }
 
-    /* Call Button */
     .call-btn {
       display: block;
       margin: 16px 0;
@@ -83,7 +79,6 @@
       transform: scale(1.03);
     }
 
-    /* Chat Window */
     #chatLog {
       background: #f8f8f8;
       height: 350px;
@@ -93,7 +88,6 @@
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
 
-    /* Chat bubbles */
     .bubble {
       padding: 10px 14px;
       border-radius: 16px;
@@ -107,20 +101,19 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    .me { 
-      background: #dcf8c6; 
-      color: #000; 
-      margin-left: auto; 
+    .me {
+      background: #dcf8c6;
+      color: #000;
+      margin-left: auto;
       text-align: right;
     }
 
-    .bot { 
-      background: #ffffff; 
-      color: #000; 
+    .bot {
+      background: #ffffff;
+      color: #000;
       border-left: 4px solid #00a878;
     }
 
-    /* Input Area */
     .input-area {
       display: flex;
       gap: 10px;
@@ -151,6 +144,26 @@
 
     .input-area button:hover {
       transform: scale(1.05);
+    }
+
+    @media (max-width: 480px) {
+      .chat-box {
+        padding: 10px;
+      }
+      .input-area input {
+        font-size: 0.9rem;
+      }
+      .input-area button {
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+      }
+      .header h2 {
+        font-size: 1.1rem;
+      }
+      .intro {
+        font-size: 0.95rem;
+      }
     }
   </style>
 </head>
@@ -183,6 +196,10 @@
   <script>
     let threadId = null;
 
+    window.onload = () => {
+      appendMessage("bot", "👋 ¡Hola! Soy Alejandro iA. ¿En qué puedo ayudarte hoy?");
+    };
+
     async function sendMessage() {
       const input = document.getElementById("userInput");
       const msg = input.value.trim();
@@ -191,15 +208,19 @@
       appendMessage("me", msg);
       input.value = "";
 
-      const res = await fetch("/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, threadId })
-      });
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: msg, threadId })
+        });
 
-      const data = await res.json();
-      threadId = data.threadId;
-      appendMessage("bot", data.reply);
+        const data = await res.json();
+        threadId = data.threadId;
+        appendMessage("bot", data.reply);
+      } catch (err) {
+        appendMessage("bot", "⚠️ Lo siento, hubo un error al procesar tu mensaje.");
+      }
     }
 
     function appendMessage(type, text) {
