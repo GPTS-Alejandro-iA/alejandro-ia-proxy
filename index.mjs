@@ -60,16 +60,19 @@ app.post('/chat', async (req, res) => {
   // 2️⃣ Generar respuesta de Alejandro iA vía OpenAI
   let aiReply = '';
   try {
-    const response = await fetch('https://api.openai.com/v1/assistants/' + process.env.ASSISTANT_ID + '/message', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        input: [{ role: 'user', content: message }]
-      })
-    });
+    const response = await fetch(
+      `https://api.openai.com/v1/assistants/${process.env.ASSISTANT_ID}/message`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          input: [{ role: 'user', content: message }]
+        })
+      }
+    );
 
     const data = await response.json();
     aiReply = data.output?.[0]?.content?.[0]?.text || 'Lo siento, no pude generar respuesta.';
@@ -84,4 +87,4 @@ app.post('/chat', async (req, res) => {
       from: process.env.GMAIL_USER,
       to: email,
       subject: 'Cotización de Green Power Tech',
-      text
+      text:
