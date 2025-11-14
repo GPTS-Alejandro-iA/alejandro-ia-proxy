@@ -4,98 +4,180 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Alejandro iA - Chat Solar</title>
+
   <style>
     body {
       margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: url('https://greenpowertech.store/cdn/shop/files/puerto-rico-solar-bg.jpg') no-repeat center center fixed;
+      font-family: "Segoe UI", sans-serif;
+      background: url('https://greenpowertech.store/cdn/shop/files/puerto-rico-solar-bg.jpg')
+        no-repeat center center fixed;
       background-size: cover;
-      color: #fff;
     }
-    .chat-container {
-      background-color: rgba(0, 0, 0, 0.6);
-      max-width: 500px;
-      margin: auto;
-      padding: 1rem;
-      border-radius: 10px;
-      margin-top: 2rem;
+
+    /* Capa oscura suave para hacer todo más legible */
+    .overlay {
+      background-color: rgba(0, 0, 0, 0.55);
+      position: fixed;
+      inset: 0;
     }
-    .logo {
+
+    .chat-box {
+      max-width: 480px;
+      margin: 0 auto;
+      padding-top: 20px;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #007b5e, #00a878);
+      padding: 20px;
+      border-radius: 14px;
       display: flex;
       align-items: center;
-      gap: 1rem;
-    }
-    .logo img {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-    }
-    h2 {
-      margin: 0;
-      font-size: 1.2rem;
-    }
-    .intro {
-      margin-top: 1rem;
-      background-color: #007b5e;
-      padding: 1rem;
-      border-radius: 10px;
-      font-size: 0.95rem;
-    }
-    .call-button {
-      display: block;
-      background-color: #28a745;
+      gap: 15px;
       color: white;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .header img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 2px solid white;
+    }
+
+    .header h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    /* Intro Text */
+    .intro {
+      margin-top: 12px;
+      background-color: rgba(255,255,255,0.1);
+      padding: 15px 18px;
+      border-radius: 14px;
+      color: white;
+      font-size: 1rem;
+      backdrop-filter: blur(4px);
+      line-height: 1.4rem;
+    }
+
+    /* Call Button */
+    .call-btn {
+      display: block;
+      margin: 16px 0;
       text-align: center;
-      padding: 0.75rem;
-      border-radius: 8px;
-      text-decoration: none;
-      margin: 1rem 0;
-      font-weight: bold;
-    }
-    #chatLog {
-      background: #fff;
-      color: #000;
+      padding: 12px;
+      background: #25d366;
       border-radius: 10px;
-      padding: 1rem;
-      height: 250px;
-      overflow-y: auto;
-      margin-bottom: 1rem;
+      color: white;
+      font-weight: bold;
+      font-size: 1.05rem;
+      text-decoration: none;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+      transition: 0.2s;
     }
-    input {
-      width: 80%;
-      padding: 0.75rem;
-      border-radius: 20px;
+    .call-btn:hover {
+      transform: scale(1.03);
+    }
+
+    /* Chat Window */
+    #chatLog {
+      background: #f8f8f8;
+      height: 350px;
+      overflow-y: auto;
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    /* Chat bubbles */
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 16px;
+      margin-bottom: 12px;
+      max-width: 80%;
+      animation: fadeIn 0.2s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .me { 
+      background: #dcf8c6; 
+      color: #000; 
+      margin-left: auto; 
+      text-align: right;
+    }
+
+    .bot { 
+      background: #ffffff; 
+      color: #000; 
+      border-left: 4px solid #00a878;
+    }
+
+    /* Input Area */
+    .input-area {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .input-area input {
+      flex: 1;
+      padding: 12px 15px;
+      border-radius: 30px;
       border: none;
       font-size: 1rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
     }
-    button {
-      width: 15%;
-      background-color: #25d366;
+
+    .input-area button {
+      background: #25d366;
       border: none;
+      width: 55px;
+      height: 55px;
       border-radius: 50%;
-      padding: 0.75rem;
-      cursor: pointer;
-      font-size: 1.2rem;
+      font-size: 1.3rem;
       color: white;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+      transition: 0.2s;
+    }
+
+    .input-area button:hover {
+      transform: scale(1.05);
     }
   </style>
 </head>
+
 <body>
-  <div class="chat-container">
-    <div class="logo">
-      <img src="https://greenpowertech.store/cdn/shop/files/Green_-4972-8295-4796a94961b7.png?v=1708225235&width=90" alt="Logo Green Power Tech Store" />
-      <h2>¡Hola! Soy Alejandro iA</h2>
+  <div class="overlay">
+    <div class="chat-box">
+
+      <div class="header">
+        <img src="https://greenpowertech.store/cdn/shop/files/Green_-4972-8295-4796a94961b7.png?v=1708225235&width=90" />
+        <h2>¡Hola! Soy Alejandro iA</h2>
+      </div>
+
+      <div class="intro">
+        Experto Digital de Green Power Tech Store. Estoy aquí para orientarte, responder tus preguntas sobre nuestros sistemas solares y ayudarte a tomar la mejor decisión sin presión.
+      </div>
+
+      <a href="tel:+17876992140" class="call-btn">📞 Llamar al (787) 699-2140</a>
+
+      <div id="chatLog"></div>
+
+      <div class="input-area">
+        <input id="userInput" placeholder="Escribe tu mensaje..." />
+        <button onclick="sendMessage()">➤</button>
+      </div>
+
     </div>
-    <div class="intro">
-      Experto Digital de Green Power Tech Store. Estoy aquí para orientarte, responder tus preguntas sobre nuestros sistemas y apoyarte en el proceso de compra y comunicación con nuestro Departamento de Ventas. Mi tarea es hacer que te sientas cómodo y sin presiones, darte una orientación completa y hacer las recomendaciones técnicas que puedan ayudarte a tomar la mejor decisión.
-    </div>
-
-    <a class="call-button" href="tel:+17876992140">📞 Llama al 1 (787) 699-2140</a>
-
-    <div id="chatLog"></div>
-
-    <input id="userInput" placeholder="Escribe tu pregunta aquí..." />
-    <button onclick="sendMessage()">➤</button>
   </div>
 
   <script>
@@ -103,28 +185,29 @@
 
     async function sendMessage() {
       const input = document.getElementById("userInput");
-      const message = input.value.trim();
-      if (!message) return;
+      const msg = input.value.trim();
+      if (!msg) return;
 
-      appendMessage("Tú", message);
+      appendMessage("me", msg);
       input.value = "";
 
       const res = await fetch("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, threadId })
+        body: JSON.stringify({ message: msg, threadId })
       });
 
       const data = await res.json();
       threadId = data.threadId;
-      appendMessage("Alejandro iA", data.reply);
+      appendMessage("bot", data.reply);
     }
 
-    function appendMessage(sender, text) {
+    function appendMessage(type, text) {
       const log = document.getElementById("chatLog");
-      const msg = document.createElement("p");
-      msg.innerHTML = `<strong>${sender}:</strong> ${text}`;
-      log.appendChild(msg);
+      const b = document.createElement("div");
+      b.className = "bubble " + type;
+      b.innerText = text;
+      log.appendChild(b);
       log.scrollTop = log.scrollHeight;
     }
   </script>
