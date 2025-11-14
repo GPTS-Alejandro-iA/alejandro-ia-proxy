@@ -4,72 +4,170 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alejandro iA - Green Power Tech</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  /* Reset básico */
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
+  body { background: #ece5dd; display: flex; justify-content: center; align-items: center; height: 100vh; }
 
-  body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #ece5dd; }
-
-  /* Contenedor del chat */
   .chat-container {
     width: 400px;
     max-width: 95%;
-    height: 600px;
+    height: 650px;
     background: #fff;
-    border-radius: 10px;
+    border-radius: 15px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    overflow: hidden;
   }
 
-  /* Header */
   .chat-header {
     padding: 15px;
     background: #075e54;
     color: white;
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
     font-weight: bold;
     text-align: center;
+    position: relative;
   }
 
-  /* Mensajes */
+  .chat-header::after {
+    content: '🌞';
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
   .messages {
     flex: 1;
     padding: 15px;
     overflow-y: auto;
-    background: #ece5dd;
+    background: #e5ddd5;
+    display: flex;
+    flex-direction: column;
   }
 
-  .message { margin-bottom: 10px; max-width: 80%; padding: 8px 12px; border-radius: 7px; }
+  .message { 
+    margin-bottom: 10px;
+    padding: 10px 14px;
+    border-radius: 20px;
+    max-width: 75%;
+    word-wrap: break-word;
+    animation: fadeIn 0.3s ease-in-out;
+  }
   .user { background: #dcf8c6; align-self: flex-end; }
   .bot { background: #fff; border: 1px solid #ccc; align-self: flex-start; }
 
-  /* Input */
   .input-container {
     display: flex;
     padding: 10px;
     background: #f0f0f0;
-    border-bottom-left-radius: 10px;
-    border-bottom-right-radius: 10px;
   }
 
   .input-container input {
     flex: 1;
-    padding: 10px;
-    border-radius: 20px;
+    padding: 12px 15px;
+    border-radius: 25px;
     border: 1px solid #ccc;
     outline: none;
+    font-size: 14px;
   }
 
   .input-container button {
     margin-left: 10px;
-    padding: 10px 15px;
-    border-radius: 20px;
+    padding: 12px 20px;
+    border-radius: 25px;
     border: none;
     background: #075e54;
     color: white;
+    font-weight: bold;
     cursor: pointer;
+    transition: background 0.2s ease;
   }
 
-  .input-container button:hover { background: #1
+  .input-container button:hover { background: #128c7e; }
+
+  /* Animaciones de mensajes */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Mensaje de estado (error, éxito) */
+  .status {
+    font-size: 12px;
+    color: #555;
+    margin-bottom: 5px;
+    text-align: center;
+    opacity: 0.8;
+  }
+
+  @media(max-width: 450px) {
+    .chat-container { width: 100%; height: 90vh; border-radius: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="chat-container">
+  <div class="chat-header">Alejandro iA</div>
+  <div class="messages" id="messages">
+    <div class="message bot">👋 ¡Hola! Soy Alejandro iA, tu asesor solar de Green Power Tech. Para prepararte una cotización, necesito tus datos: <br><strong>Nombre, Teléfono, Correo</strong>. También puedes agregar dirección y mejor hora para llamarte.</div>
+  </div>
+  <div class="status" id="status"></div>
+  <div class="input-container">
+    <input type="text" id="userInput" placeholder="Escribe tu mensaje...">
+    <button onclick="sendMessage()">Enviar</button>
+  </div>
+</div>
+
+<script>
+  const messagesContainer = document.getElementById('messages');
+  const statusDiv = document.getElementById('status');
+  let clientData = { name: '', email: '', phone: '', address: '', bestTime: '' };
+
+  function appendMessage(text, sender) {
+    const div = document.createElement('div');
+    div.className = 'message ' + sender;
+    div.innerHTML = text;
+    messagesContainer.appendChild(div);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  function setStatus(text, type='') {
+    statusDiv.textContent = text;
+    statusDiv.style.color = type === 'error' ? 'red' : 'green';
+    if (!text) statusDiv.style.opacity = 0;
+    else statusDiv.style.opacity = 0.8;
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('userInput');
+    const message = input.value.trim();
+    if (!message) return;
+
+    appendMessage(message, 'user');
+
+    // Extraer datos si no están completos
+    if (!clientData.name || !clientData.email || !clientData.phone) {
+      const parts = message.split(',');
+      if (parts.length >= 3) {
+        clientData.name = parts[0].trim();
+        clientData.phone = parts[1].trim();
+        clientData.email = parts[2].trim();
+        if (parts[3]) clientData.address = parts[3].trim();
+        if (parts[4]) clientData.bestTime = parts[4].trim();
+        setStatus('Datos recibidos. Enviando a Alejandro iA...', 'success');
+      } else {
+        appendMessage("Por favor envía tus datos en este formato: Nombre, Teléfono, Correo[, Dirección, Mejor hora]", 'bot');
+        input.value = '';
+        return;
+      }
+    }
+
+    input.value = '';
+
+    try {
+      const res = await fetch('/chat', {
+        method: 'POST',
+        he
