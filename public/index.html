@@ -1,96 +1,75 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Alejandro iA - Chat Solar</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
-  <style>
-    /* Reset y fuentes */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Roboto', sans-serif; background-color: #ece5dd; display: flex; justify-content: center; align-items: center; height: 100vh; }
-    
-    /* Contenedor principal del chat */
-    .chat-container {
-      width: 100%;
-      max-width: 400px;
-      height: 600px;
-      background-color: #fff;
-      border-radius: 10px;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alejandro iA - Green Power Tech</title>
+<style>
+  /* Reset básico */
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
 
-    /* Header tipo WhatsApp */
-    .chat-header {
-      background-color: #075e54;
-      color: #fff;
-      padding: 15px;
-      font-weight: bold;
-      font-size: 1.1rem;
-    }
+  body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #ece5dd; }
 
-    /* Área de mensajes */
-    .messages {
-      flex: 1;
-      padding: 15px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      background-color: #f0f0f0;
-    }
+  /* Contenedor del chat */
+  .chat-container {
+    width: 400px;
+    max-width: 95%;
+    height: 600px;
+    background: #fff;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
 
-    /* Burbujas */
-    .message {
-      max-width: 75%;
-      padding: 10px 15px;
-      border-radius: 20px;
-      line-height: 1.4;
-      word-wrap: break-word;
-    }
+  /* Header */
+  .chat-header {
+    padding: 15px;
+    background: #075e54;
+    color: white;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    font-weight: bold;
+    text-align: center;
+  }
 
-    .user { background-color: #dcf8c6; align-self: flex-end; }
-    .bot { background-color: #fff; align-self: flex-start; }
+  /* Mensajes */
+  .messages {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background: #ece5dd;
+  }
 
-    /* Input y botón */
-    .input-container {
-      display: flex;
-      border-top: 1px solid #ccc;
-      padding: 10px;
-      background-color: #fff;
-    }
-    .input-container input {
-      flex: 1;
-      padding: 10px 15px;
-      border-radius: 20px;
-      border: 1px solid #ccc;
-      outline: none;
-      margin-right: 10px;
-    }
-    .input-container button {
-      background-color: #075e54;
-      color: #fff;
-      border: none;
-      border-radius: 20px;
-      padding: 0 15px;
-      cursor: pointer;
-    }
-  </style>
-</head>
-<body>
-  <div class="chat-container">
-    <div class="chat-header">Alejandro iA 🌞</div>
-    <div class="messages" id="messages"></div>
-    <div class="input-container">
-      <input type="text" id="userInput" placeholder="Escribe tu mensaje...">
-      <button id="sendBtn">Enviar</button>
-    </div>
-  </div>
+  .message { margin-bottom: 10px; max-width: 80%; padding: 8px 12px; border-radius: 7px; }
+  .user { background: #dcf8c6; align-self: flex-end; }
+  .bot { background: #fff; border: 1px solid #ccc; align-self: flex-start; }
 
-  <script>
-    const messagesEl = document.getElementById('messages');
-    const userInput = document.getElementById('userInput');
-    const s
+  /* Input */
+  .input-container {
+    display: flex;
+    padding: 10px;
+    background: #f0f0f0;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+  }
+
+  .input-container input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    outline: none;
+  }
+
+  .input-container button {
+    margin-left: 10px;
+    padding: 10px 15px;
+    border-radius: 20px;
+    border: none;
+    background: #075e54;
+    color: white;
+    cursor: pointer;
+  }
+
+  .input-container button:hover { background: #1
