@@ -3,234 +3,175 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#007b5e" />
-  <title>Alejandro iA - Chat Solar</title>
+  <title>Alejandro iA - Green Power Tech</title>
 
   <style>
     body {
       margin: 0;
-      font-family: "Segoe UI", sans-serif;
-      background: url('https://greenpowertech.store/cdn/shop/files/puerto-rico-solar-bg.jpg') no-repeat center center fixed;
-      background-size: cover;
-    }
-
-    .overlay {
-      background-color: rgba(0, 0, 0, 0.55);
-      position: fixed;
-      inset: 0;
-    }
-
-    .chat-box {
-      max-width: 480px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    .header {
-      background: linear-gradient(135deg, #007b5e, #00a878);
-      padding: 20px;
-      border-radius: 14px;
+      font-family: Arial, sans-serif;
+      background: #ece5dd;
       display: flex;
+      justify-content: center;
       align-items: center;
-      gap: 15px;
-      color: white;
+      height: 100vh;
+    }
+
+    .chat-container {
+      width: 100%;
+      max-width: 500px;
+      height: 90vh;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      border-radius: 12px;
+      overflow: hidden;
       box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
 
-    .header img {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      border: 2px solid white;
-    }
-
-    .header h2 {
-      margin: 0;
-      font-size: 1.35rem;
-      font-weight: 700;
-    }
-
-    .intro {
-      margin-top: 12px;
-      background-color: rgba(255,255,255,0.1);
-      padding: 15px 18px;
-      border-radius: 14px;
+    .chat-header {
+      background: #075e54;
       color: white;
-      font-size: 1rem;
-      backdrop-filter: blur(4px);
-      line-height: 1.4rem;
-    }
-
-    .call-btn {
-      display: block;
-      margin: 16px 0;
-      text-align: center;
-      padding: 12px;
-      background: #25d366;
-      border-radius: 10px;
-      color: white;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 18px;
       font-weight: bold;
-      font-size: 1.05rem;
-      text-decoration: none;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
-      transition: 0.2s;
-    }
-    .call-btn:hover {
-      transform: scale(1.03);
     }
 
-    #chatLog {
-      background: #f8f8f8;
-      height: 350px;
+    .chat-header img {
+      height: 40px;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 15px;
       overflow-y: auto;
-      padding: 20px;
-      border-radius: 14px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      background: #ece5dd;
+      display: flex;
+      flex-direction: column;
     }
 
-    .bubble {
+    .message {
+      max-width: 80%;
+      margin-bottom: 12px;
       padding: 10px 14px;
       border-radius: 16px;
-      margin-bottom: 12px;
-      max-width: 80%;
-      animation: fadeIn 0.2s;
+      font-size: 15px;
+      line-height: 1.4;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .me {
+    .user-message {
+      align-self: flex-end;
       background: #dcf8c6;
-      color: #000;
-      margin-left: auto;
-      text-align: right;
     }
 
-    .bot {
-      background: #ffffff;
-      color: #000;
-      border-left: 4px solid #00a878;
+    .bot-message {
+      align-self: flex-start;
+      background: white;
+      border: solid 1px #ddd;
     }
 
-    .input-area {
+    .chat-input {
       display: flex;
-      gap: 10px;
-      margin-top: 18px;
+      padding: 12px;
+      background: #f0f0f0;
+      border-top: solid 1px #ccc;
     }
 
-    .input-area input {
+    .chat-input input {
       flex: 1;
-      padding: 12px 15px;
-      border-radius: 30px;
-      border: none;
-      font-size: 1rem;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      padding: 12px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      outline: none;
     }
 
-    .input-area button {
-      background: #25d366;
-      border: none;
-      width: 55px;
-      height: 55px;
-      border-radius: 50%;
-      font-size: 1.3rem;
+    .chat-input button {
+      margin-left: 10px;
+      padding: 10px 20px;
+      background: #075e54;
       color: white;
+      border: none;
+      border-radius: 20px;
       cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
-      transition: 0.2s;
+      font-size: 16px;
     }
 
-    .input-area button:hover {
-      transform: scale(1.05);
-    }
-
-    @media (max-width: 480px) {
-      .chat-box {
-        padding: 10px;
-      }
-      .input-area input {
-        font-size: 0.9rem;
-      }
-      .input-area button {
-        width: 45px;
-        height: 45px;
-        font-size: 1.1rem;
-      }
-      .header h2 {
-        font-size: 1.1rem;
-      }
-      .intro {
-        font-size: 0.95rem;
-      }
+    .chat-input button:hover {
+      background: #054c42;
     }
   </style>
 </head>
-
 <body>
-  <div class="overlay">
-    <div class="chat-box">
+  <div class="chat-container">
 
-      <div class="header">
-        <img src="https://greenpowertech.store/cdn/shop/files/Green_-4972-8295-4796a94961b7.png?v=1708225235&width=90" />
-        <h2>¡Hola! Soy Alejandro iA</h2>
-      </div>
-
-      <div class="intro">
-        Experto Digital de Green Power Tech Store. Estoy aquí para orientarte, responder tus preguntas sobre nuestros sistemas solares y ayudarte a tomar la mejor decisión sin presión.
-      </div>
-
-      <a href="tel:+17876992140" class="call-btn">📞 Llamar al (787) 699-2140</a>
-
-      <div id="chatLog"></div>
-
-      <div class="input-area">
-        <input id="userInput" placeholder="Escribe tu mensaje..." />
-        <button onclick="sendMessage()">➤</button>
-      </div>
-
+    <div class="chat-header">
+      Alejandro iA
+      <img src="https://greenpowertech.store/cdn/shop/files/gpt_logo_transp.png" alt="Logo" />
     </div>
+
+    <div class="chat-messages" id="chatMessages">
+      <div class="message bot-message">
+        👋 ¡Hola! Soy Alejandro iA, tu asesor solar de Green Power Tech.  
+        ¿En qué puedo ayudarte hoy?
+      </div>
+    </div>
+
+    <div class="chat-input">
+      <input type="text" id="messageInput" placeholder="Escribe tu mensaje..." />
+      <button onclick="sendMessage()">Enviar</button>
+    </div>
+
   </div>
 
   <script>
-    let threadId = null;
+    const chatMessages = document.getElementById("chatMessages");
+    const messageInput = document.getElementById("messageInput");
 
-    window.onload = () => {
-      appendMessage("bot", "👋 ¡Hola! Soy Alejandro iA. ¿En qué puedo ayudarte hoy?");
-    };
+    function appendMessage(text, className) {
+      const div = document.createElement("div");
+      div.className = `message ${className}`;
+      div.textContent = text;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 
     async function sendMessage() {
-      const input = document.getElementById("userInput");
-      const msg = input.value.trim();
-      if (!msg) return;
+      const message = messageInput.value.trim();
+      if (!message) return;
 
-      appendMessage("me", msg);
-      input.value = "";
+      appendMessage(message, "user-message");
+      messageInput.value = "";
 
       try {
-        const res = await fetch("/chat", {
+        const response = await fetch("/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: msg, threadId })
+          body: JSON.stringify({
+            message,
+            name: "",
+            phone: "",
+            email: "",
+            address: "",
+            bestTime: ""
+          })
         });
 
-        const data = await res.json();
-        threadId = data.threadId;
-        appendMessage("bot", data.reply);
+        const data = await response.json();
+        appendMessage(data.reply || "No pude generar respuesta.", "bot-message");
+
       } catch (err) {
-        appendMessage("bot", "⚠️ Lo siento, hubo un error al procesar tu mensaje.");
+        appendMessage("❌ Error enviando el mensaje.", "bot-message");
       }
     }
 
-    function appendMessage(type, text) {
-      const log = document.getElementById("chatLog");
-      const b = document.createElement("div");
-      b.className = "bubble " + type;
-      b.innerText = text;
-      log.appendChild(b);
-      log.scrollTop = log.scrollHeight;
-    }
+    messageInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        sendMessage();
+      }
+    });
   </script>
 </body>
 </html>
