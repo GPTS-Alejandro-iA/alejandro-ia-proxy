@@ -1,173 +1,86 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Alejandro iA - Green Power Tech</title>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
-  body { background: #ece5dd; display: flex; justify-content: center; align-items: center; height: 100vh; }
-
-  .chat-container {
-    width: 400px;
-    max-width: 95%;
-    height: 650px;
-    background: #fff;
-    border-radius: 15px;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-    overflow: hidden;
-  }
-
-  .chat-header {
-    padding: 15px;
-    background: #075e54;
-    color: white;
-    font-weight: bold;
-    text-align: center;
-    position: relative;
-  }
-
-  .chat-header::after {
-    content: '🌞';
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-  }
-
-  .messages {
-    flex: 1;
-    padding: 15px;
-    overflow-y: auto;
-    background: #e5ddd5;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .message { 
-    margin-bottom: 10px;
-    padding: 10px 14px;
-    border-radius: 20px;
-    max-width: 75%;
-    word-wrap: break-word;
-    animation: fadeIn 0.3s ease-in-out;
-  }
-  .user { background: #dcf8c6; align-self: flex-end; }
-  .bot { background: #fff; border: 1px solid #ccc; align-self: flex-start; }
-
-  .input-container {
-    display: flex;
-    padding: 10px;
-    background: #f0f0f0;
-  }
-
-  .input-container input {
-    flex: 1;
-    padding: 12px 15px;
-    border-radius: 25px;
-    border: 1px solid #ccc;
-    outline: none;
-    font-size: 14px;
-  }
-
-  .input-container button {
-    margin-left: 10px;
-    padding: 12px 20px;
-    border-radius: 25px;
-    border: none;
-    background: #075e54;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background 0.2s ease;
-  }
-
-  .input-container button:hover { background: #128c7e; }
-
-  /* Animaciones de mensajes */
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* Mensaje de estado (error, éxito) */
-  .status {
-    font-size: 12px;
-    color: #555;
-    margin-bottom: 5px;
-    text-align: center;
-    opacity: 0.8;
-  }
-
-  @media(max-width: 450px) {
-    .chat-container { width: 100%; height: 90vh; border-radius: 0; }
-  }
+  body { margin: 0; font-family: Arial, sans-serif; background: #ece5dd; display: flex; justify-content: center; align-items: center; height: 100vh; }
+  .chat-container { width: 100%; max-width: 500px; height: 90vh; background: white; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+  .chat-header { background: #075e54; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold; }
+  .chat-header img { height: 40px; }
+  .chat-messages { flex: 1; padding: 15px; overflow-y: auto; background: #ece5dd; display: flex; flex-direction: column; }
+  .message { max-width: 80%; margin-bottom: 12px; padding: 10px 14px; border-radius: 16px; font-size: 15px; line-height: 1.4; }
+  .user-message { align-self: flex-end; background: #dcf8c6; }
+  .bot-message { align-self: flex-start; background: white; border: solid 1px #ddd; }
+  .chat-input { display: flex; padding: 12px; background: #f0f0f0; border-top: solid 1px #ccc; }
+  .chat-input input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #ccc; font-size: 16px; outline: none; }
+  .chat-input button { margin-left: 10px; padding: 10px 20px; background: #075e54; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 16px; }
+  .chat-input button:hover { background: #054c42; }
 </style>
 </head>
 <body>
 
 <div class="chat-container">
-  <div class="chat-header">Alejandro iA</div>
-  <div class="messages" id="messages">
-    <div class="message bot">👋 ¡Hola! Soy Alejandro iA, tu asesor solar de Green Power Tech. Para prepararte una cotización, necesito tus datos: <br><strong>Nombre, Teléfono, Correo</strong>. También puedes agregar dirección y mejor hora para llamarte.</div>
+  <div class="chat-header">
+    Alejandro iA
+    <img src="https://greenpowertech.store/cdn/shop/files/gpt_logo_transp.png" alt="Logo" />
   </div>
-  <div class="status" id="status"></div>
-  <div class="input-container">
-    <input type="text" id="userInput" placeholder="Escribe tu mensaje...">
+
+  <div class="chat-messages" id="chatMessages">
+    <div class="message bot-message">
+      👋 ¡Hola! Soy Alejandro iA, tu asesor solar de Green Power Tech.  
+      ¿En qué puedo ayudarte hoy?
+    </div>
+  </div>
+
+  <div class="chat-input">
+    <input type="text" id="messageInput" placeholder="Escribe tu mensaje..." />
     <button onclick="sendMessage()">Enviar</button>
   </div>
 </div>
 
 <script>
-  const messagesContainer = document.getElementById('messages');
-  const statusDiv = document.getElementById('status');
-  let clientData = { name: '', email: '', phone: '', address: '', bestTime: '' };
+  const chatMessages = document.getElementById("chatMessages");
+  const messageInput = document.getElementById("messageInput");
 
-  function appendMessage(text, sender) {
-    const div = document.createElement('div');
-    div.className = 'message ' + sender;
-    div.innerHTML = text;
-    messagesContainer.appendChild(div);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-  }
-
-  function setStatus(text, type='') {
-    statusDiv.textContent = text;
-    statusDiv.style.color = type === 'error' ? 'red' : 'green';
-    if (!text) statusDiv.style.opacity = 0;
-    else statusDiv.style.opacity = 0.8;
+  function appendMessage(text, className) {
+    const div = document.createElement("div");
+    div.className = `message ${className}`;
+    div.textContent = text;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 
   async function sendMessage() {
-    const input = document.getElementById('userInput');
-    const message = input.value.trim();
+    const message = messageInput.value.trim();
     if (!message) return;
-
-    appendMessage(message, 'user');
-
-    // Extraer datos si no están completos
-    if (!clientData.name || !clientData.email || !clientData.phone) {
-      const parts = message.split(',');
-      if (parts.length >= 3) {
-        clientData.name = parts[0].trim();
-        clientData.phone = parts[1].trim();
-        clientData.email = parts[2].trim();
-        if (parts[3]) clientData.address = parts[3].trim();
-        if (parts[4]) clientData.bestTime = parts[4].trim();
-        setStatus('Datos recibidos. Enviando a Alejandro iA...', 'success');
-      } else {
-        appendMessage("Por favor envía tus datos en este formato: Nombre, Teléfono, Correo[, Dirección, Mejor hora]", 'bot');
-        input.value = '';
-        return;
-      }
-    }
-
-    input.value = '';
+    appendMessage(message, "user-message");
+    messageInput.value = "";
 
     try {
-      const res = await fetch('/chat', {
-        method: 'POST',
-        he
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          name: "",      // si quieres, puedes recolectar nombre
+          phone: "",     // teléfono
+          email: "",     // email
+          address: "",   // dirección
+          bestTime: ""   // mejor hora
+        })
+      });
+      const data = await response.json();
+      appendMessage(data.reply || "No pude generar respuesta.", "bot-message");
+    } catch (err) {
+      appendMessage("❌ Error enviando el mensaje.", "bot-message");
+    }
+  }
+
+  messageInput.addEventListener("keypress", (e) => { if (e.key === "Enter") sendMessage(); });
+</script>
+
+</body>
+</html>
