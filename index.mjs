@@ -1,42 +1,44 @@
+// index.mjs
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { send_lead, send_email } from "./functions.js";
 
 const app = express();
-const PORT = process.env.PORT || 10000;
 
-// Middlewares
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
-// Ruta de prueba
+// Ruta raíz para probar
 app.get("/", (req, res) => {
-  res.send("Alejandro iA Webchat está corriendo 🎉");
+  res.send("Servidor de Alejandro iA corriendo ✅");
 });
 
-// Ruta para recibir leads desde el chat
+// Ruta para recibir leads
 app.post("/lead", async (req, res) => {
   try {
-    const { name, phone, bestTime, address } = req.body;
+    const { name, email, phone, message } = req.body;
 
-    if (!name || !phone) {
-      return res.status(400).json({ error: "Se requiere al menos nombre y teléfono" });
+    if (!name || !email) {
+      return res.status(400).json({ error: "Faltan datos requeridos" });
     }
 
-    // Enviar lead a HubSpot
-    await send_lead({ name, phone, bestTime, address });
+    // Enviar a HubSpot
+    await send_lead({ name, email, phone, message });
 
-    // Enviar email (opcional)
-    await send_email({ name, phone, bestTime, address });
+    // Enviar correo
+    await send_email({ name, email, phone, message });
 
-    return res.json({ success: true, message: "Lead enviado correctamente" });
-  } catch (err) {
-    console.error("Error procesando lead:", err);
-    return res.status(500).json({ error: err.message });
+    res.status(200).json({ status: "ok", message: "Lead procesado correctamente" });
+  } catch (error) {
+    console.error("Error procesando lead:", error);
+    res.status(500).json({ status: "error", message: error.message });
   }
 });
 
+// Puerto dinámico para Render
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
 });
