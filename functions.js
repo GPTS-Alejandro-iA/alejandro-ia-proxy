@@ -1,69 +1,57 @@
+import HubspotClient from "@hubspot/api-client";
 import nodemailer from "nodemailer";
-import fetch from "node-fetch"; // Para llamadas a HubSpot API
-import dotenv from "dotenv";
-dotenv.config();
 
-// Función para enviar lead a HubSpot
-export async function send_lead({ name, email = "", phone, bestTime = "", address = "" }) {
+const hubspotClient = new HubspotClient({ accessToken: process.env.HUBSPOT_ACCESS_TOKEN });
+
+// Función para enviar Lead a HubSpot
+export async function send_lead({ name, email, phone, bestTime, address, message }) {
+  const [firstname, ...rest] = name.split(" ");
+  const lastname = rest.join(" ") || " ";
+  const emailFinal = email || `${firstname.toLowerCase()}.${lastname.toLowerCase()}@noemail.com`;
+
   try {
-    const hubspotApiKey = process.env.HUBSPOT_API_KEY;
-    const url = `https://api.hubapi.com/crm/v3/objects/contacts`;
-
-    const body = {
+    const response = await hubspotClient.crm.contacts.basicApi.create({
       properties: {
-        firstname: name.split(" ")[0],
-        lastname: name.split(" ").slice(1).join(" "),
-        email: email || "",
+        firstname,
+        lastname,
+        email: emailFinal,
         phone: phone || "",
-        address: address || "",
-        best_time_to_call: bestTime || ""
+        notes: message || "",
+        best_time: bestTime || "",
+        address: address || ""
       }
-    };
-
-    const response = await fetch(`${url}?hapikey=${hubspotApiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
     });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`HubSpot API error: ${text}`);
-    }
-
-    const data = await response.json();
-    console.log("Lead enviado a HubSpot:", data);
-    return { status: "lead_sent", data };
-  } catch (err) {
-    console.error("Error enviando lead a HubSpot:", err);
-    throw new Error(err.message);
+    console.log("Lead enviado correctamente a HubSpot:", response.body);
+    return { success: true };
+  } catch (error) {
+    console.error("Error enviando lead a HubSpot:", error.message);
+    return { success: false, error: error.message };
   }
 }
 
-// Función para enviar email
+// Función para enviar correo al cliente
 export async function send_email({ to, subject, text }) {
-  try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    secure: process.env.SMTP_SECURE === "true",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
 
+  try {
     const info = await transporter.sendMail({
       from: `"Green Power Tech Store" <${process.env.SMTP_USER}>`,
       to,
       subject,
-      text,
+      text
     });
-
-    console.log("Correo enviado:", info.messageId);
-    return { status: "email_sent", messageId: info.messageId };
-  } catch (err) {
-    throw new Error("Error enviando email: " + err.message);
+    console.log("Correo enviado correctamente:", info.messageId);
+    return { success: true };
+  } catch (error) {
+    console.error("Error enviando correo:", error.message);
+    return { success: false, error: error.message };
   }
 }
-
