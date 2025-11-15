@@ -1,8 +1,8 @@
 import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import bodyParser from 'body-parser';
-import { send_lead, send_email } from './functions.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,43 +10,39 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Middleware
+app.use(cors());
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// Servir carpeta public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Ruta para enviar lead a HubSpot
-app.post('/api/lead', async (req, res) => {
-  const leadData = req.body;
-  try {
-    await send_lead(leadData);
-    res.status(200).json({ message: 'Lead enviado correctamente' });
-  } catch (error) {
-    console.error('Error enviando lead:', error);
-    res.status(500).json({ error: error.message });
-  }
+// Chat endpoint
+app.post('/api/chat', (req, res) => {
+  const { message } = req.body;
+  console.log('Mensaje recibido:', message);
+
+  // Aquí iría la lógica de tu IA
+  const reply = `Alejandro iA responde: "${message}"`; 
+  res.json({ reply });
 });
 
-// Ruta para enviar email
-app.post('/api/email', async (req, res) => {
+// Ejemplo de endpoint lead
+app.post('/api/lead', (req, res) => {
+  const lead = req.body;
+  console.log('Lead recibido:', lead);
+  res.json({ status: 'ok' });
+});
+
+// Ejemplo de endpoint email
+app.post('/api/email', (req, res) => {
   const emailData = req.body;
-  try {
-    await send_email(emailData);
-    res.status(200).json({ message: 'Email enviado correctamente' });
-  } catch (error) {
-    console.error('Error enviando email:', error);
-    res.status(500).json({ error: error.message });
-  }
+  console.log('Email a enviar:', emailData);
+  res.json({ status: 'sent' });
 });
 
-// Si se accede a cualquier otra ruta, devolver index.html (para SPA)
-app.get('*', (req, res) => {
+// Servir frontend
+app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
 });
