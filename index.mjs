@@ -1,77 +1,77 @@
 import express from "express";
 import dotenv from "dotenv";
-import fetch from "node-fetch";
-import { OpenAI } from "openai";
+import path from "path";
+import { fileURLToPath } from "url";
+import { send_lead, send_email } from "./functions.js"; // Importamos nuestras funciones
+import OpenAI from "openai";
 
 dotenv.config();
 
 const app = express();
-app.use(express.json());
-app.use(express.static("public"));
+const PORT = process.env.PORT || 10000;
 
+// Configuración para __dirname en ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public"))); // Archivos estáticos (HTML, CSS, JS)
+
+// Rutas
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// Endpoint para enviar lead
+app.post("/send-lead", async (req, res) => {
+  try {
+    const lead = req.body; // {name, phone, email?, bestTime?, address?}
+    const result = await send_lead(lead);
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error("Error enviando lead:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Endpoint para enviar email
+app.post("/send-email", async (req, res) => {
+  try {
+    const emailData = req.body; // {to, subject, text}
+    const result = await send_email(emailData);
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error("Error enviando email:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Inicializamos OpenAI (GPT-4.1 mini por defecto)
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const ASSISTANT_ID = process.env.ASSISTANT_ID; // Tu Assistant de Alejandro iA
-const threads = new Map(); // Guardará threads por cliente (por ejemplo por phone o sessionId)
-
+// Endpoint para chat con Alejandro iA
 app.post("/chat", async (req, res) => {
   try {
-    const { message, phone, name, email, bestTime, address } = req.body;
-    if (!phone) {
-      return res.json({
-        reply: "⚠️ No se proporcionó teléfono. Necesitamos al menos nombre y teléfono para continuar.",
-      });
-    }
+    const { message, conversation } = req.body;
 
-    let thread = threads.get(phone);
-    if (!thread) {
-      // Crear thread nuevo por cliente
-      const response = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        messages: [
-          {
-            role: "system",
-            content: `
-📑 PROMPT MAESTRO — Alejandro iA | Green Power Tech Store
-Actúa como Alejandro iA, asesor solar experto. Habla español neutral y profesional. 
-Sigue exactamente estas reglas: 
-1️⃣ Pregunta primero qué tipo de sistema interesa (solar o backup). 
-2️⃣ Luego solicita los datos de contacto obligatorios: nombre, teléfono. 
-3️⃣ No repitas la solicitud de datos si ya fueron dados. 
-4️⃣ Usa respuestas cortas, claras y persuasivas, basadas en el Prompt Maestro completo. 
-5️⃣ Una vez tengas datos mínimos, continúa orientación y ofrece cotización si aplica. 
-6️⃣ Extrae automáticamente los datos y llama a send_lead({name, phone, bestTime, address}). 
-7️⃣ Cuando corresponda enviar cotización, prepara send_email() según la instrucción técnica.
-`
-          },
-          { role: "user", content: message },
-        ],
-      });
-
-      thread = response.choices[0].message;
-      threads.set(phone, thread);
-      return res.json({ reply: thread.content });
-    }
-
-    // Continuar thread existente
     const response = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
-      messages: [
-        { role: "system", content: "Este es un thread ya iniciado con un cliente." },
-        { role: "user", content: message },
-      ],
+      messages: conversation.concat({ role: "user", content: message }),
+      temperature: 0.7,
     });
 
     const reply = response.choices[0].message.content;
     res.json({ reply });
   } catch (err) {
-    console.error(err);
-    res.json({ reply: "❌ Error procesando el mensaje." });
+    console.error("Error en chat:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.listen(process.env.PORT || 10000, () => {
-  console.log("Servidor corriendo en puerto 10000");
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en puerto ${PORT}`);
 });
