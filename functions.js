@@ -1,7 +1,6 @@
 import fetch from "node-fetch";
-import nodemailer from "nodemailer";
 
-// ====== SEND LEAD A HUBSPOT ======
+// Enviar lead a HubSpot
 export async function send_lead({ name, phone, email, address, preferred_time }) {
   const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
   const url = `https://api.hubapi.com/crm/v3/objects/contacts`;
@@ -37,29 +36,27 @@ export async function send_lead({ name, phone, email, address, preferred_time })
   return data;
 }
 
-// ====== SEND EMAIL ======
+// Enviar propuesta por email
 export async function send_email({ to, subject, text }) {
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER, // tu gmail
-      pass: process.env.EMAIL_PASS  // app password
-    }
+  const API_KEY = process.env.EMAIL_API_KEY; // tu proveedor de email
+  const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${API_KEY}`
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: to }] }],
+      from: { email: "gpts.citas@gmail.com", name: "Alejandro Ai" },
+      subject,
+      content: [{ type: "text/plain", value: text }]
+    })
   });
 
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
-    text
-  };
-
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent:", info.response);
-    return info;
-  } catch (err) {
-    console.error("Error sending email:", err);
+  if (!response.ok) {
+    console.error("Error sending email:", await response.text());
     return false;
   }
+  console.log("Email sent to", to);
+  return true;
 }
