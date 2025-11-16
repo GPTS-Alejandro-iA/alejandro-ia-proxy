@@ -1,48 +1,51 @@
-import express from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import express from "express";
+import bodyParser from "body-parser";
+import { send_lead, send_email } from "./functions.js";
+import OpenAI from "openai";
 
 const app = express();
-const PORT = process.env.PORT || 10000;
-
-app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
-// Chat endpoint
-app.post('/api/chat', (req, res) => {
-  const { message } = req.body;
-  console.log('Mensaje recibido:', message);
-
-  // Aquí iría la lógica de tu IA
-  const reply = `Alejandro iA responde: "${message}"`; 
-  res.json({ reply });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
 
-// Ejemplo de endpoint lead
-app.post('/api/lead', (req, res) => {
-  const lead = req.body;
-  console.log('Lead recibido:', lead);
-  res.json({ status: 'ok' });
+app.post("/chat", async (req, res) => {
+  try {
+    const userMessage = req.body.message;
+
+    // ====== LLAMADA AL ASSISTANT ======
+    const response = await openai.responses.create({
+      model: "gpt-4.1",
+      input: [{ role: "user", content: userMessage }],
+    });
+
+    let assistantReply = response.output_text; // Texto del Assistant
+
+    // ====== DETECTAR TOOL ======
+    const toolRegex = /{.*"tool".*}/;
+    const match = assistantReply.match(toolRegex);
+
+    if (match) {
+      const toolData = JSON.parse(match[0]);
+      if (toolData.tool === "send_lead") {
+        await send_lead(toolData.arguments);
+      } else if (toolData.tool === "send_email") {
+        await send_email(toolData.arguments);
+      }
+      // Remover el JSON del mensaje final que se envía al cliente
+      assistantReply = assistantReply.replace(toolRegex, "").trim();
+    }
+
+    res.json({ reply: assistantReply });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error processing message" });
+  }
 });
 
-// Ejemplo de endpoint email
-app.post('/api/email', (req, res) => {
-  const emailData = req.body;
-  console.log('Email a enviar:', emailData);
-  res.json({ status: 'sent' });
-});
-
-// Servir frontend
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
