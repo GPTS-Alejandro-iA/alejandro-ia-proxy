@@ -1,103 +1,102 @@
-body {
-  font-family: 'Helvetica', sans-serif;
-  background: url('https://i.imgur.com/Oz8Z6hK.jpg') no-repeat center center fixed;
-  background-size: cover;
+/* Reset básico */
+body, html {
   margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f0f2f5;
+}
+
+/* Wrapper central */
+.chat-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
 }
 
+/* Chat container */
 .chat-container {
-  width: 400px;
-  max-width: 95%;
-  height: 600px;
-  background-color: rgba(255,255,255,0.95);
-  border-radius: 15px;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 400px; /* más compacto en PC */
+  height: 80vh;
+  background-color: #e6f0ff;
+  border-radius: 15px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   overflow: hidden;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 
-.chat-header {
-  display: flex;
-  align-items: center;
-  background-color: #00a651; /* Verde de Green Power Tech */
-  color: white;
-  padding: 15px;
-}
-
-.chat-header .avatar img {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  margin-right: 10px;
-  border: 2px solid white;
-}
-
-.chat-header .chat-title {
-  font-weight: bold;
-  font-size: 16px;
-}
-
-.chat-header .company {
-  display: block;
-  font-size: 12px;
-  font-weight: normal;
-}
-
+/* Chat box */
 .chat-box {
   flex: 1;
-  padding: 15px;
-  overflow-y: auto;
-  background-color: rgba(255,255,255,0.9);
-}
-
-.chat-box .message {
-  margin: 10px 0;
   padding: 10px;
-  border-radius: 12px;
-  max-width: 80%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
-.chat-box .user-message {
-  background-color: #dcf8c6;
-  align-self: flex-end;
+/* Mensajes */
+.message {
+  margin: 6px 0;
+  padding: 10px 15px;
+  border-radius: 20px;
+  max-width: 75%;
+  word-wrap: break-word;
 }
 
-.chat-box .bot-message {
-  background-color: #ffffff;
-  border: 1px solid #ccc;
+.bot {
+  background-color: #0056b3;
+  color: white;
   align-self: flex-start;
 }
 
-.chat-box .system-message {
-  text-align: center;
-  font-size: 12px;
-  color: #555;
-  margin-bottom: 10px;
+.user {
+  background-color: #cce5ff;
+  color: black;
+  align-self: flex-end;
 }
 
-.chat-form {
+/* Input box */
+.input-box {
   display: flex;
   border-top: 1px solid #ccc;
+  background-color: #fff;
 }
 
-.chat-form input {
+.input-box input {
   flex: 1;
-  padding: 10px;
+  padding: 12px;
   border: none;
-  outline: none;
-  font-size: 14px;
+  font-size: 16px;
 }
 
-.chat-form button {
-  background-color: #00a651;
+.input-box input:focus {
+  outline: none;
+}
+
+.input-box button {
+  background-color: #007BFF;
   color: white;
   border: none;
   padding: 0 20px;
   cursor: pointer;
-  font-weight: bold;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.input-box button:hover {
+  background-color: #0056b3;
+}
+
+/* Scroll automático */
+.chat-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-box::-webkit-scrollbar-thumb {
+  background-color: rgba(0,0,0,0.2);
+  border-radius: 3px;
 }
