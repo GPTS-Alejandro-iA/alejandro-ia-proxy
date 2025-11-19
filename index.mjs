@@ -4,6 +4,7 @@ import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+
 import { send_lead, send_email } from "./functions.js";
 import OpenAI from "openai";
 
@@ -12,62 +13,74 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// GPT config
+// CONFIG OPENAI
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const GPT_MODEL = process.env.GPT_MODEL || "gpt-4";
-
-// Prompt Maestro
-const promptMaestro = {
-  role: "system",
-  content: `Eres Alejandro iA, el asistente solar emocional de Green Power Tech Store. Tu misión es guiar a los clientes de Puerto Rico con empatía, claridad y profesionalismo. Hablas con calidez caribeña, usas emojis con intención emocional, y siempre refuerzas la confianza, la autonomía y la esperanza. Nunca das respuestas genéricas. Siempre cierras con una pregunta que invite a continuar la conversación o tomar acción.`
-};
+const ASSISTANT_ID = process.env.ASSISTANT_ID;
 
 // __dirname para ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Middleware
+// MIDDLEWARE
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// Ruta principal: sirve el frontend
+// SERVE FRONTEND
 app.get("/", (req, res) => {
   res.sendFile("index.html", { root: path.join(__dirname, "public") });
 });
 
-// Endpoint del chatbot
+// CHAT ENDPOINT usando Threads + Runs del Assistant
 app.post("/chat", async (req, res) => {
   const { message, leadData, emailData } = req.body;
 
-  let responseText = "⚠️ Alejandro iA no pudo responder en este momento.";
-
   try {
-    const completion = await openai.chat.completions.create({
-      model: GPT_MODEL,
-      messages: [promptMaestro, { role: "user", content: message }],
-      temperature: 0.7
+    // 1️⃣ Crear un thread por conversación (simple si no usas usuarios)
+    const thread = await openai.beta.threads.create();
+
+    // 2️⃣ Enviar el mensaje del usuario
+    await openai.beta.threads.messages.create(thread.id, {
+      role: "user",
+      content: message
     });
 
-    responseText = completion.choices[0].message.content;
+    // 3️⃣ Ejecutar el Assistant
+    const run = await openai.beta.threads.runs.createAndPoll(thread.id, {
+      assistant_id: ASSISTANT_ID
+    });
+
+    // 4️⃣ Obtener respuesta del Assistant
+    const messages = await openai.beta.threads.messages.list(thread.id);
+
+    const lastMessage = messages.data
+      .filter(m => m.role === "assistant")
+      .pop();
+
+    const aiResponse =
+      lastMessage?.content?.[0]?.text?.value ||
+      "⚠️ Alejandro Ai no pudo responder.";
+
+    // Opcionales: lead + email
+    if (leadData?.name && leadData?.phone) {
+      await send_lead(leadData);
+    }
+
+    if (emailData?.to && emailData?.subject && emailData?.text) {
+      await send_email(emailData);
+    }
+
+    res.json({ reply: aiResponse });
   } catch (error) {
-    console.error("Error al conectar con OpenAI:", error.message);
+    console.error("❌ Error con OpenAI Assistant:", error);
+    return res.json({
+      reply:
+        "⚠️ Ocurrió un error al conectarme con Alejandro iA. Intenta nuevamente."
+    });
   }
-
-  // Captación de lead
-  if (leadData?.name && leadData?.phone) {
-    await send_lead(leadData);
-  }
-
-  // Envío de correo
-  if (emailData?.to && emailData?.subject && emailData?.text) {
-    await send_email(emailData);
-  }
-
-  res.json({ reply: responseText });
 });
 
-// Inicia el servidor
+// RUN SERVER
 app.listen(PORT, () => {
-  console.log(`✅ Alejandro iA activo en el puerto ${PORT}`);
+  console.log(`🚀 Backend de Alejandro iA corriendo en puerto ${PORT}`);
 });
