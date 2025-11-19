@@ -12,168 +12,122 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+// GPT config
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const GPT_MODEL = process.env.GPT_MODEL || "gpt-4";
 
-const GPT_MODEL = process.env.GPT_MODEL || "gpt-4.1";
-
-// ---------------------------------------------------------
-// ESTADOS DE CONVERSACIÓN (FSM)
-// ---------------------------------------------------------
-
-const sessions = new Map(); // sessionID → state + data
-
-function getSession(sessionId) {
-  if (!sessions.has(sessionId)) {
-    sessions.set(sessionId, {
-      state: "inicio",
-      name: null,
-      phone: null,
-      interest: null,
-      email: null
-    });
-  }
-  return sessions.get(sessionId);
-}
-
-// ---------------------------------------------------------
-// MATCHERS CORREGIDOS (MUY IMPORTANTES)
-// ---------------------------------------------------------
-
-const phoneRegex =
-  /(\+1\s?)?(\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/;
-
-const nameRegex =
-  /\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+)\b/;
-
-// ---------------------------------------------------------
-// PROMPT MAESTRO
-// ---------------------------------------------------------
-
+// Prompt Maestro
 const promptMaestro = {
   role: "system",
-  content: `
-Eres Alejandro iA, asistente solar de Green Power Tech Store en Puerto Rico.
-Hablas con empatía, claridad y estilo profesional.
-Siempre sigues estrictamente el estado de conversación definido por el backend.
-Nunca pides los datos dos veces si ya existen.`
+  content: `🎯 Eres Alejandro Ai, el asesor solar inteligente de Green Power Tech Store. 
+Hablas en español con acento profesional, persuasivo y cálido, siguiendo las instrucciones de tu PROMPT MAESTRO. 
+• Solicita datos de contacto solo una vez.
+• Extrae leads y llama send_lead.
+• Envía cotizaciones solo con email y llama send_email.
+• Mantén respuestas breves, directas y profesionales.
+• Nunca repitas solicitudes de datos si ya se tienen.
+• Usa emojis con intención emocional y lenguaje consultivo.`
 };
 
-// ---------------------------------------------------------
-// SERVIR EL FRONTEND
-// ---------------------------------------------------------
-
+// __dirname para ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public")));
 
+// Simulación de sesiones para recordar datos por usuario
+const sessions = {}; // key = userId o sessionId
+
+// Ruta principal: sirve frontend
 app.get("/", (req, res) => {
   res.sendFile("index.html", { root: path.join(__dirname, "public") });
 });
 
-// ---------------------------------------------------------
-// ENDPOINT PRINCIPAL DEL CHAT
-// ---------------------------------------------------------
-
+// Endpoint del chat
 app.post("/chat", async (req, res) => {
   const { message, sessionId } = req.body;
+  if (!sessionId) return res.status(400).json({ reply: "⚠️ No sessionId provided" });
 
-  // Si no viene sessionId → Generar uno basado en IP
-  const sid = sessionId || req.ip;
-  const session = getSession(sid);
+  // Inicializa sesión si no existe
+  if (!sessions[sessionId]) {
+    sessions[sessionId] = {
+      name: null,
+      phone: null,
+      email: null,
+      interest: null,
+      step: "inicio"
+    };
+  }
+  const session = sessions[sessionId];
 
-  let reply = "⚠️ Hubo un error inesperado.";
+  // Extraer datos básicos si vienen en el mensaje
+  // (puede mejorarse con regex más robusto)
+  const nameMatch = message.match(/(?:mi nombre es|me llamo|soy)\s+([A-Za-zÁÉÍÓÚñáéíóú\s]+)/i);
+  if (nameMatch && !session.name) session.name = nameMatch[1].trim();
 
-  try {
-    // --------------------------
-    //  FSM — MANEJO DE ESTADOS
-    // --------------------------
+  const phoneMatch = message.match(/(?:mi teléfono es|mi número es|teléfono|(\(\d{3}\)\s?\d{3}-\d{4}))/i);
+  if (phoneMatch && !session.phone) session.phone = phoneMatch[1].trim();
 
-    if (session.state === "inicio") {
-      session.state = "pidiendo_datos";
-      reply = "¡Hola! Soy **Alejandro Ai** 🤖☀️. Antes de orientarte, ¿me compartes tu nombre y número de teléfono?";
-    }
+  const emailMatch = message.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i);
+  if (emailMatch && !session.email) session.email = emailMatch[0].trim();
 
-    else if (session.state === "pidiendo_datos") {
-      const phoneMatch = message.match(phoneRegex);
-      const nameMatch = message.match(nameRegex);
-
-      if (nameMatch) session.name = nameMatch[1];
-      if (phoneMatch) session.phone = phoneMatch[0];
-
-      // Si faltan datos, pedir solo lo que falta
-      if (!session.name || !session.phone) {
-        let missing = [];
-        if (!session.name) missing.push("tu nombre");
-        if (!session.phone) missing.push("tu número");
-
-        reply = `Perfecto 😊. Solo necesito **${missing.join(" y ")}** para continuar.`;
-      } else {
-        // Ya hay todo → enviar lead
-        await send_lead({
-          name: session.name,
-          phone: session.phone,
-          interest: session.interest || "No especificado"
-        });
-
-        session.state = "esperando_interes";
-
-        reply = `¡Excelente, ${session.name}! 🙌  
-Ya tengo tus datos. Ahora cuéntame, ¿qué sistema deseas conocer?
-
-1. 🔆 Energía Solar  
-2. ⚡ Backup para apartamento / oficina  
-3. 🤝 Ayuda para evaluar tu factura`
-      }
-    }
-
-    else if (session.state === "esperando_interes") {
-      if (/1|solar|placas/i.test(message)) {
-        session.interest = "solar";
-        session.state = "asesorando";
-        reply = "Perfecto 🌞. Cuéntame: ¿Quieres energía solar **fuera de la red**, o un sistema **híbrido con baterías**?";
-      }
-      else if (/2|backup/i.test(message)) {
-        session.interest = "backup";
-        session.state = "asesorando";
-        reply = "¡Excelente! ⚡ Los backups son perfectos para apartamentos. ¿Cuántos equipos deseas mantener durante un apagón?";
-      }
-      else {
-        reply = "Para ayudarte mejor, dime: **1 solar**, **2 backup**, o **3 ayuda con factura**.";
-      }
-    }
-
-    else if (session.state === "asesorando") {
-      // Aquí entra la IA para respuesta profesional
-      const completion = await openai.chat.completions.create({
-        model: GPT_MODEL,
-        messages: [
-          promptMaestro,
-          { role: "user", content: message },
-          { role: "assistant", content: "Responde como Alejandro iA." }
-        ],
-        temperature: 0.7
-      });
-
-      reply = completion.choices[0].message.content;
-    }
-
-  } catch (err) {
-    console.error("❌ Error en /chat:", err);
-    reply = "⚠️ Ocurrió un error mientras procesaba tu solicitud.";
+  // Detectar interés
+  if (!session.interest) {
+    if (/solar/i.test(message)) session.interest = "Energía Solar";
+    else if (/backup|respaldo/i.test(message)) session.interest = "Backup";
   }
 
-  res.json({ reply });
+  // Construir contexto para OpenAI
+  let context = `Estado de conversación: ${session.step}\n`;
+  context += `Nombre: ${session.name || "desconocido"}\n`;
+  context += `Teléfono: ${session.phone || "desconocido"}\n`;
+  context += `Email: ${session.email || "desconocido"}\n`;
+  context += `Interés: ${session.interest || "desconocido"}\n`;
+  context += `Mensaje del cliente: ${message}\n`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: GPT_MODEL,
+      messages: [
+        promptMaestro,
+        { role: "user", content: context }
+      ],
+      temperature: 0.7
+    });
+
+    let reply = completion.choices[0].message.content;
+
+    // Llamadas a send_lead si ya tenemos nombre y teléfono
+    if (session.name && session.phone && session.step === "inicio") {
+      await send_lead({
+        name: session.name,
+        phone: session.phone,
+        interest: session.interest
+      });
+      session.step = "datos_completos";
+    }
+
+    // Enviar email si cliente dio email y lo solicitó
+    if (session.email && /cotización|propuesta|enviar/i.test(message)) {
+      await send_email({
+        to: session.email,
+        subject: "Propuesta formal de Green Power Tech Store",
+        text: `Gracias por su interés. Aquí tiene la propuesta formal del sistema recomendado: ${session.interest}. Precio: [precio]. Enlace de compra: [URL]. Beneficios: [resumen breve]. Garantía: [resumen breve]. Válida hasta ${new Date(Date.now() + 15*24*60*60*1000).toLocaleDateString()}.`
+      });
+      reply += "\n\n✅ Cotización enviada por correo electrónico.";
+    }
+
+    res.json({ reply });
+  } catch (error) {
+    console.error("Error OpenAI:", error.message);
+    res.json({ reply: "⚠️ Alejandro Ai no pudo responder en este momento." });
+  }
 });
 
-// ---------------------------------------------------------
-// INICIAR SERVIDOR
-// ---------------------------------------------------------
-
+// Inicia el servidor
 app.listen(PORT, () => {
-  console.log(`🚀 Alejandro Ai activo en el puerto ${PORT}`);
+  console.log(`✅ Alejandro Ai activo en el puerto ${PORT}`);
 });
