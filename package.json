@@ -1,11 +1,14 @@
 {
+  "name": "alejandro-ai",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "start": "node server.mjs"
   },
   "dependencies": {
     "express": "^4.19.2",
+    "nodemailer": "^6.9.14",
     "node-fetch": "^3.3.2",
-    "nodemailer": "^6.9.14"
+    "dotenv": "^16.4.5"
   }
 }
