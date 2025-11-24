@@ -1,6 +1,7 @@
 import express from "express";
 import fetch from "node-fetch";
 import nodemailer from "nodemailer";
+import "dotenv/config";
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -15,19 +16,48 @@ const transporter = nodemailer.createTransport({
   auth: { user: GMAIL_USER, pass: GMAIL_PASS },
 });
 
-// === TOOLS ===
-const tools = [ /* los dos JSON que definiste: send_lead y send_email */ ];
+// === TOOLS (exactamente como tú los definiste) ===
+const tools = [
+  {
+    name: "send_lead",
+    description: "Envía un lead a HubSpot CRM",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        phone: { type: "string" },
+        email: { type: "string" },
+        address: { type: "string" },
+        preferred_time: { type: "string" },
+      },
+      required: ["name", "phone"],
+    },
+  },
+  {
+    name: "send_email",
+    description: "Envía una propuesta formal de Green Power Tech Store al correo del cliente.",
+    parameters: {
+      type: "object",
+      properties: {
+        to: { type: "string" },
+        subject: { type: "string" },
+        text: { type: "string" },
+      },
+      required: ["to", "subject", "text"],
+    },
+  },
+];
 
 // === ENVIAR LEAD A HUBSPOT ===
 async function sendLeadToHubSpot(data) {
-  if (!HUBSPOT_TOKEN) return console.log("Falta token");
-  const [firstname, ...last] = data.name.split(" ");
-  const lastname = last.join(" ");
+  if (!HUBSPOT_TOKEN) return console.log("Falta HUBSPOT_TOKEN");
+  const [firstname, ...rest] = data.name.split(" ");
+  const lastname = rest.join(" ") || "";
 
   await fetch("https://api.hubapi.com/crm/v3/objects/contacts", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${HUBSPOT_TOKEN}`,
+      "Authorization": `Bearer ${HUBSPOT_TOKEN}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -53,26 +83,23 @@ async function sendProposalEmail({ to, subject, text }) {
     text,
     html: text.replace(/\n/g, "<br>"),
   });
+  console.log(`Cotización enviada a ${to}`);
 }
 
 // === RUTA CHAT ===
 app.post("/chat", async (req, res) => {
-  const { messages, tool_calls } = req.body;
+  const { tool_calls } = req.body;
 
-  // Ejecutar tools
   if (tool_calls) {
     for (const call of tool_calls) {
-      if (call.name === "send_lead") {
-        await sendLeadToHubSpot(JSON.parse(call.arguments));
-      }
-      if (call.name === "send_email") {
-        await sendProposalEmail(JSON.parse(call.arguments));
-      }
+      const args = JSON.parse(call.arguments || "{}");
+      if (call.name === "send_lead") await sendLeadToHubSpot(args);
+      if (call.name === "send_email") await sendProposalEmail(args);
     }
   }
 
   res.json({
-    response: `¡Perfecto! Ya envié tu lead a HubSpot y tu cotización al correo.\n\nEn breve te contacta el Sr. Oxor al 787-699-2140.\n\n¡Excelente día! ☀️`,
+    response: "¡Perfecto! Lead enviado a HubSpot y cotización enviada al correo.\n\nEl Sr. Oxor te contactará pronto al 787-699-2140.\n\n¡Excelente día! ☀️",
     tools,
   });
 });
