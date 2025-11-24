@@ -1,129 +1,81 @@
-import { createServer } from "https://jsr.io/@oak/oak/15.4.0/mod.ts";
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import express from "express";
+import fetch from "node-fetch";
+import nodemailer from "nodemailer";
 
-const app = createServer();
+const app = express();
+app.use(express.json({ limit: "10mb" }));
 
-// === CONFIGURACIÓN DE ENTORNO ===
-const HUBSPOT_TOKEN = Deno.env.get("HUBSPOT_TOKEN");
-const GMAIL_USER = Deno.env.get("GMAIL_USER") || "gpts.citas@gmail.com";
-const GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD");
-
-// Nodemailer (envío real desde Gmail)
-import nodemailer from "https://esm.sh/nodemailer@6.9.14";
+// === CONFIG ===
+const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN;
+const GMAIL_USER = process.env.GMAIL_USER || "gpts.citas@gmail.com";
+const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD;
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
-  auth: {
-    user: GMAIL_USER,
-    pass: GMAIL_APP_PASSWORD,
-  },
+  auth: { user: GMAIL_USER, pass: GMAIL_PASS },
 });
 
-// === TOOLS (exactamente como tú los definiste) ===
-const tools = [
-  {
-    name: "send_lead",
-    description: "Envía un lead a HubSpot CRM",
-    parameters: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "Nombre completo del cliente" },
-        phone: { type: "string", description: "Número de teléfono del cliente" },
-        email: { type: "string", description: "Correo electrónico del cliente" },
-        address: { type: "string", description: "Dirección física del cliente" },
-        preferred_time: { type: "string", description: "Horario preferido para contacto" },
-      },
-      required: ["name", "phone"],
-    },
-  },
-  {
-    name: "send_email",
-    description: "Envía una propuesta formal de Green Power Tech Store al correo del cliente.",
-    parameters: {
-      type: "object",
-      properties: {
-        to: { type: "string", description: "Correo electrónico del cliente" },
-        subject: { type: "string", description: "Asunto del correo" },
-        text: { type: "string", description: "Cuerpo del correo con la propuesta" },
-      },
-      required: ["to", "subject", "text"],
-    },
-  },
-];
+// === TOOLS ===
+const tools = [ /* los dos JSON que definiste: send_lead y send_email */ ];
 
-// === FUNCIÓN: ENVIAR LEAD A HUBSPOT (real) ===
-async function sendLeadToHubSpot({ name, phone, email = "", address = "", preferred_time = "" }) {
-  if (!HUBSPOT_TOKEN) return console.log("Falta HUBSPOT_TOKEN");
-
-  const [firstname = "", lastname = ""] = name.split(" ");
+// === ENVIAR LEAD A HUBSPOT ===
+async function sendLeadToHubSpot(data) {
+  if (!HUBSPOT_TOKEN) return console.log("Falta token");
+  const [firstname, ...last] = data.name.split(" ");
+  const lastname = last.join(" ");
 
   await fetch("https://api.hubapi.com/crm/v3/objects/contacts", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${HUBSPOT_TOKEN}`,
+      Authorization: `Bearer ${HUBSPOT_TOKEN}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       properties: {
         firstname,
         lastname,
-        phone,
-        email,
-        address,
-        preferred_contact_time: preferred_time,
+        phone: data.phone,
+        email: data.email || "",
+        address: data.address || "",
+        preferred_contact_time: data.preferred_time || "",
         lead_source: "Chat Alejandro AI",
-        lifecyclestage: "lead",
       },
     }),
   });
 }
 
-// === FUNCIÓN: ENVIAR COTIZACIÓN POR EMAIL (real) ===
+// === ENVIAR EMAIL ===
 async function sendProposalEmail({ to, subject, text }) {
-  const mailOptions = {
+  await transporter.sendMail({
     from: `"Alejandro - Green Power Tech Store" <${GMAIL_USER}>`,
     to,
     subject,
     text,
     html: text.replace(/\n/g, "<br>"),
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Email enviado a ${to}`);
-  } catch (error) {
-    console.error("Error enviando email:", error);
-  }
+  });
 }
 
-// === RUTA PRINCIPAL DEL CHAT ===
-app.post("/chat", async (ctx) => {
-  const { messages, tool_results } = await ctx.request.body({ type: "json" }).value;
+// === RUTA CHAT ===
+app.post("/chat", async (req, res) => {
+  const { messages, tool_calls } = req.body;
 
-  // Procesar tool results (si el modelo llamó a alguna función)
-  for (const result of tool_results || []) {
-    if (result.name === "send_lead") {
-      await sendLeadToHubSpot(JSON.parse(result.arguments));
-    }
-    if (result.name === "send_email") {
-      await sendProposalEmail(JSON.parse(result.arguments));
+  // Ejecutar tools
+  if (tool_calls) {
+    for (const call of tool_calls) {
+      if (call.name === "send_lead") {
+        await sendLeadToHubSpot(JSON.parse(call.arguments));
+      }
+      if (call.name === "send_email") {
+        await sendProposalEmail(JSON.parse(call.arguments));
+      }
     }
   }
 
-  // Aquí va tu lógica de respuesta del modelo (OpenAI, Grok, etc.)
-  // Este ejemplo solo responde un mensaje de confirmación
-  const userMessage = messages[messages.length - 1].content;
-
-  ctx.response.body = {
-    response: `¡Gracias! Ya recibí tu información.\n\n` +
-              `Lead enviado a HubSpot y cotización enviada a tu correo.\n` +
-              `En breve el Sr. Oxor Alejandro Vázquez te contactará al 787-699-2140.\n\n` +
-              `¡Que tengas un excelente día! ☀️`,
-    tools: tools,
-  };
+  res.json({
+    response: `¡Perfecto! Ya envié tu lead a HubSpot y tu cotización al correo.\n\nEn breve te contacta el Sr. Oxor al 787-699-2140.\n\n¡Excelente día! ☀️`,
+    tools,
+  });
 });
 
-// === INICIAR SERVIDOR ===
-serve(app.listen({ port: 8000 }));
-console.log("Alejandro AI corriendo en https://tu-render-url.onrender.com");
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Alejandro AI corriendo en puerto ${PORT}`));
