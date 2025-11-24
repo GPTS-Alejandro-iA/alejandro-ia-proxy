@@ -1,139 +1,191 @@
 import express from "express";
+import OpenAI from "openai";
 import fetch from "node-fetch";
 import nodemailer from "nodemailer";
+import "dotenv/config";
 import path from "path";
 import { fileURLToPath } from "url";
-import "dotenv/config";
 
-// =====================
-// CONFIG EXPRESS + STATIC
-// =====================
-const app = express();
-app.use(express.json({ limit: "10mb" }));
-
-// Para resolver __dirname en ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Servir carpeta /public que contiene index.html
-app.use(express.static(path.join(__dirname, "public")));
+// === APP ===
+const app = express();
+app.use(express.json({ limit: "10mb" }));
+app.use(express.static("public"));
 
-// =====================
-// CONFIG
-// =====================
-const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN;
-const GMAIL_USER = process.env.GMAIL_USER || "gpts.citas@gmail.com";
-const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD;
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: { user: GMAIL_USER, pass: GMAIL_PASS },
+// === OPENAI CLIENT ===
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// =====================
-// TOOLS
-// =====================
-const tools = [
+// === TOOLS ===
+const toolsDefinition = [
   {
-    name: "send_lead",
-    description: "Envía un lead a HubSpot CRM",
-    parameters: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        phone: { type: "string" },
-        email: { type: "string" },
-        address: { type: "string" },
-        preferred_time: { type: "string" },
+    type: "function",
+    function: {
+      name: "send_lead",
+      description: "Envía un lead a HubSpot CRM",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          phone: { type: "string" },
+          email: { type: "string" },
+          address: { type: "string" },
+          preferred_time: { type: "string" },
+        },
+        required: ["name", "phone"],
       },
-      required: ["name", "phone"],
     },
   },
   {
-    name: "send_email",
-    description: "Envía una propuesta formal de Green Power Tech Store al correo del cliente.",
-    parameters: {
-      type: "object",
-      properties: {
-        to: { type: "string" },
-        subject: { type: "string" },
-        text: { type: "string" },
+    type: "function",
+    function: {
+      name: "send_email",
+      description: "Envía cotización formal por email",
+      parameters: {
+        type: "object",
+        properties: {
+          to: { type: "string" },
+          subject: { type: "string" },
+          text: { type: "string" },
+        },
+        required: ["to", "subject", "text"],
       },
-      required: ["to", "subject", "text"],
     },
   },
 ];
 
-// =====================
-// FUNCIONES
-// =====================
-async function sendLeadToHubSpot(data) {
-  if (!HUBSPOT_TOKEN) return console.log("Falta HUBSPOT_TOKEN");
-  const [firstname, ...rest] = data.name.split(" ");
-  const lastname = rest.join(" ") || "";
+// === HUBSPOT AND EMAIL ===
+async function sendLead(args) {
+  console.log("➡️ Enviando lead:", args);
+
+  if (!process.env.HUBSPOT_TOKEN) {
+    console.log("❌ No hay HUBSPOT_TOKEN");
+    return;
+  }
 
   await fetch("https://api.hubapi.com/crm/v3/objects/contacts", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${HUBSPOT_TOKEN}`,
+      Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       properties: {
-        firstname,
-        lastname,
-        phone: data.phone,
-        email: data.email || "",
-        address: data.address || "",
-        preferred_contact_time: data.preferred_time || "",
+        firstname: args.name,
+        phone: args.phone,
+        email: args.email || "",
+        address: args.address || "",
+        preferred_contact_time: args.preferred_time || "",
         lead_source: "Chat Alejandro AI",
       },
     }),
   });
 }
 
-async function sendProposalEmail({ to, subject, text }) {
-  await transporter.sendMail({
-    from: `"Alejandro - Green Power Tech Store" <${GMAIL_USER}>`,
-    to,
-    subject,
-    text,
-    html: text.replace(/\n/g, "<br>"),
+async function sendEmail(args) {
+  console.log("➡️ Enviando email:", args);
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
   });
-  console.log(`Cotización enviada a ${to}`);
+
+  await transporter.sendMail({
+    from: `"Alejandro - Green Power Tech Store" <${process.env.GMAIL_USER}>`,
+    to: args.to,
+    subject: args.subject,
+    html: args.text.replace(/\n/g, "<br>"),
+  });
 }
 
-// =====================
-// RUTA CHAT
-// =====================
+// === CHAT ROUTE ===
 app.post("/chat", async (req, res) => {
-  const { tool_calls } = req.body;
+  try {
+    const { message, sessionId } = req.body;
 
-  if (tool_calls) {
-    for (const call of tool_calls) {
-      const args = JSON.parse(call.arguments || "{}");
-      if (call.name === "send_lead") await sendLeadToHubSpot(args);
-      if (call.name === "send_email") await sendProposalEmail(args);
+    if (!message) {
+      return res.json({ reply: "No recibí mensaje." });
     }
+
+    // 1. Crear thread si no existe
+    if (!global.threads) global.threads = {};
+    if (!global.threads[sessionId]) {
+      const thread = await client.beta.threads.create();
+      global.threads[sessionId] = thread.id;
+    }
+
+    const threadId = global.threads[sessionId];
+
+    // 2. Enviar mensaje al thread
+    await client.beta.threads.messages.create(threadId, {
+      role: "user",
+      content: message,
+    });
+
+    // 3. Crear RUN
+    let run = await client.beta.threads.runs.create(threadId, {
+      assistant_id: process.env.ASSISTANT_ID,
+      tools: toolsDefinition,
+    });
+
+    // 4. Esperar run
+    let status = run.status;
+    while (status === "in_progress" || status === "queued") {
+      await new Promise(res => setTimeout(res, 1000));
+      run = await client.beta.threads.runs.retrieve(threadId, run.id);
+      status = run.status;
+    }
+
+    // === Si el assistant llama a tools ===
+    if (run.required_action?.submit_tool_outputs) {
+      const outputs = [];
+
+      for (const call of run.required_action.submit_tool_outputs.tool_calls) {
+        const args = JSON.parse(call.function.arguments);
+
+        if (call.function.name === "send_lead") {
+          await sendLead(args);
+          outputs.push({
+            tool_call_id: call.id,
+            output: "Lead enviado a HubSpot",
+          });
+        }
+
+        if (call.function.name === "send_email") {
+          await sendEmail(args);
+          outputs.push({
+            tool_call_id: call.id,
+            output: "Email enviado correctamente",
+          });
+        }
+      }
+
+      // Responder herramientas
+      await client.beta.threads.runs.submitToolOutputs(threadId, run.id, {
+        tool_outputs: outputs,
+      });
+
+      // Volver a esperar
+      run = await client.beta.threads.runs.retrieve(threadId, run.id);
+    }
+
+    // === Obtener última respuesta del assistant ===
+    const messages = await client.beta.threads.messages.list(threadId);
+    const last = messages.data[0].content[0].text.value;
+
+    res.json({ reply: last });
+
+  } catch (err) {
+    console.error("❌ ERROR EN /chat:", err);
+    res.json({ reply: "Hubo un error procesando tu solicitud." });
   }
-
-  res.json({
-    reply: "¡Perfecto! Lead enviado a HubSpot y cotización enviada.\n\nUn asesor te contactará pronto. ☀️",
-  });
 });
 
-// =====================
-// FALLBACK PARA CUALQUIER RUTA → index.html
-// NECESARIO PARA QUE NO DE CANNOT GET /
-// =====================
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-// =====================
-// INICIAR SERVIDOR
-// =====================
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () =>
-  console.log(`Alejandro AI corriendo en puerto ${PORT}`)
-);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("✔ Alejandro AI en puerto " + PORT));
