@@ -17,7 +17,6 @@ const sessions = new Map();
 
 app.post('/chat', async (req, res) => {
   const { message, sessionId } = req.body;
-
   try {
     let threadId = sessions.get(sessionId);
     if (!threadId) {
@@ -28,37 +27,31 @@ app.post('/chat', async (req, res) => {
 
     await openai.beta.threads.messages.create(threadId, { role: "user", content: message });
 
-    let run = await openai.beta.threads.runs.create(threadId, {
-      assistant_id: ASSISTANT_ID,
-    });
+    let run = await openai.beta.threads.runs.create(threadId, { assistant_id: ASSISTANT_ID });
 
-    // BUCLE MANUAL QUE EJECUTA LAS TOOLS AUTOMÁTICAMENTE
-    while (run.status === "requires_action" || run.status === "in_progress" || run.status === "queued") {
+    while (["queued","in_progress","requires_action"].includes(run.status)) {
       if (run.status === "requires_action") {
-        const tools = run.required_action.submit_tool_outputs;
-        const toolOutputs = tools.map(tool => ({
+        const toolOutputs = run.required_action.submit_tool_outputs.tool_calls.map(tool => ({
           tool_call_id: tool.id,
-          output: "Lead capturado correctamente"  // aquí puedes poner JSON si necesitas más datos
+          output: JSON.stringify({ success: true })
         }));
         run = await openai.beta.threads.runs.submitToolOutputs(threadId, run.id, { tool_outputs: toolOutputs });
+      } else {
+        await new Promise(r => setTimeout(r, 800));
+        run = await openai.beta.threads.runs.retrieve(threadId, run.id);
       }
-      await new Promise(r => setTimeout(r, 800)); // espera 800ms
-      run = await openai.beta.threads.runs.retrieve(threadId, run.id);
     }
 
     if (run.status === "completed") {
       const messages = await openai.beta.threads.messages.list(threadId);
-      const reply = messages.data[0].content[0].text.value;
-      res.json({ reply });
+      res.json({ reply: messages.data[0].content[0].text.value });
     } else {
-      res.json({ reply: "Lo siento, algo falló. ¿Podemos intentarlo de nuevo?" });
+      res.json({ reply: "Lo siento, algo falló. Vamos de nuevo." });
     }
-
-  } catch (error) {
-    console.error("Error:", error.message);
-    res.json({ reply: "Error temporal. Intenta de nuevo en segundos." });
+  } catch (e) {
+    console.error(e);
+    res.json({ reply: "Error temporal. Intenta otra vez." });
   }
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Alejandro AI corriendo en puerto ${PORT}`));
+app.listen(process.env.PORT || 10000, () => console.log("Alejandro vivo"));
