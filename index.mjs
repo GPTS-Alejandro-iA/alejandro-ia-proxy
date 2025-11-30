@@ -19,7 +19,7 @@ const openai = new OpenAI({
 });
 
 // ⚠️ AQUÍ PON TU ASSISTANT ID REAL (ej: asst_abc123xyz...)
-const ASSISTANT_ID = "asst_XXXXXXXXXXXXXXXXXXXXXXXX"; // ← CAMBIA ESTO
+const ASSISTANT_ID = "asst_pWq1M4v688jqCMtWxbliz9m9"; // ← CAMBIA ESTO
 
 const sessions = new Map();
 
