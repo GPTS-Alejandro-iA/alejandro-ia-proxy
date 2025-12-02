@@ -19,7 +19,6 @@ app.post('/chat', async (req, res) => {
   const { message, sessionId } = req.body;
 
   try {
-    // Crear o recuperar thread
     let threadId = sessions.get(sessionId);
     if (!threadId) {
       const thread = await openai.beta.threads.create();
@@ -36,9 +35,7 @@ app.post('/chat', async (req, res) => {
       assistant_id: ASSISTANT_ID
     });
 
-    // Bucle infalible que maneja tool calls y nunca se cuelga
     while (["queued", "in_progress", "requires_action"].includes(run.status)) {
-      
       if (run.status === "requires_action") {
         const toolCalls = run.required_action.submit_tool_outputs.tool_calls;
         const toolOutputs = toolCalls.map(tool => {
@@ -47,24 +44,17 @@ app.post('/chat', async (req, res) => {
             console.log("LEAD CAPTURADO EN HUBSPOT:", args);
             return {
               tool_call_id: tool.id,
-              output: JSON.stringify({ 
-                success: true, 
-                message: "Lead enviado a HubSpot y cotización en camino" 
-              })
+              output: JSON.stringify({ success: true })
             };
           }
-          // Para cualquier otra función futura
-          return { 
-            tool_call_id: tool.id, 
-            output: JSON.stringify({ success: true }) 
-          };
+          return { tool_call_id: tool.id, output: JSON.stringify({ success: true }) };
         });
 
         run = await openai.beta.threads.runs.submitToolOutputs(threadId, run.id, {
           tool_outputs: toolOutputs
         });
       } else {
-        await new Promise(r => setTimeout(r, 800));
+        await new Promise(resolve => setTimeout(resolve, 800));
         run = await openai.beta.threads.runs.retrieve(threadId, run.id);
       }
     }
@@ -74,4 +64,16 @@ app.post('/chat', async (req, res) => {
       const reply = messages.data[0].content[0].text.value;
       res.json({ reply });
     } else {
-      res.json({ reply: "Disculpa, tardé un poquito. ¿Me repites tu correo para
+      res.json({ reply: "Lo siento, algo tardó más de lo normal. ¿Puedes repetir tu última pregunta?" });
+    }
+
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.json({ reply: "Error temporal. Intenta de nuevo en segundos." });
+  }
+});
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`Alejandro AI vivo y facturando en puerto ${PORT}`);
+});
