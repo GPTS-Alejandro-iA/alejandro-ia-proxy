@@ -14,7 +14,7 @@ const sessions = new Map();
 
 // CAPTURA LEAD INMEDIATA
 async function capturarLead(message) {
-  const nameMatch = message.match(/([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+ ?[A-ZÁÉÍÓÚÑ]?[a-záéíóúñ]*)/);
+  const nameMatch = message.match(/([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+)/i);
   const phoneMatch = message.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
   const emailMatch = message.match(/[\w.-]+@[\w.-]+\.\w+/);
 
@@ -22,7 +22,7 @@ async function capturarLead(message) {
     const name = nameMatch[0].trim();
     const phone = phoneMatch[0].replace(/\D/g, '');
     const email = emailMatch ? emailMatch[0] : '';
-    const address = message.split('|')[1]?.trim() || '';
+    const address = message.split('|')[1]?.trim() || message.split(',')?.slice(2).join(',').trim() || '';
 
     await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
       method: 'POST',
@@ -33,17 +33,16 @@ async function capturarLead(message) {
       body: JSON.stringify({
         properties: {
           firstname: name.split(' ')[0],
-          lastname: name.split(' ').slice(1).join(' ') || '',
+          lastname: name.split(' ').slice(1).join(' '),
           phone: phone,
           email: email,
           address: address,
-          lifecyclestage: 'lead',
-          company: 'Green Power Tech Store'
+          lifecyclestage: 'lead'
         }
       })
     });
 
-    console.log(`LEAD ENVIADO A HUBSPOT → ${name} | ${phone}`);
+    console.log(`LEAD 100% ENVIADO → ${name} | ${phone}`);
     return true;
   }
   return false;
@@ -52,16 +51,16 @@ async function capturarLead(message) {
 app.post('/chat', async (req, res) => {
   const { message, sessionId } = req.body;
 
-  const leadCapturado = await capturarLead(message);
+  // 1. INTENTAMOS CAPTURAR LEAD PRIMERO
+  const esLead = await capturarLead(message);
 
-  if (leadCapturado) {
-    // RESPUESTA INMEDIATA SI CAPTURÓ LEAD
-    return res.json({ 
-      reply: "¡Perfecto! Ya quedó tu información registrada correctamente.\nEn minutos te llega tu cotización por email.\n\n¿Cuál es tu factura promedio mensual con LUMA para recomendarte el sistema ideal?" 
+  if (esLead) {
+    return res.json({
+      reply: "¡Perfecto! Ya quedó tu información registrada correctamente.\nEn minutos te llega tu cotización por email.\n\n¿Cuál es tu factura promedio mensual con LUMA para darte el sistema exacto?"
     });
   }
 
-  // SI NO HAY LEAD → DEJAMOS QUE EL ASSISTANT RESPONDA NORMAL
+  // 2. SI NO ES LEAD → RESPONDE EL ASSISTANT NORMAL
   try {
     let threadId = sessions.get(sessionId);
     if (!threadId) {
@@ -71,14 +70,21 @@ app.post('/chat', async (req, res) => {
     }
 
     await openai.beta.threads.messages.create(threadId, { role: "user", content: message });
-    await openai.beta.threads.runs.create(threadId, { assistant_id: ASSISTANT_ID });
-  } catch (e) {
-    console.log("Error assistant:", e.message);
-  }
 
-  // Respuesta vacía o genérica para que el assistant hable
-  res.json({ reply: "" });
+    const run = await openai.beta.threads.runs.createAndPoll(threadId, {
+      assistant_id: ASSISTANT_ID,
+      pollIntervalMs: 800
+    });
+
+    const messages = await openai.beta.threads.messages.list(threadId);
+    const reply = messages.data[0].content[0].text.value || "Estoy aquí, dime cómo te ayudo";
+
+    res.json({ reply });
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.json({ reply: "Un segundo, estoy preparando tu respuesta..." });
+  }
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("ALEJANDRO FULL AUTO – LEADS 100% GARANTIZADOS"));
+app.listen(PORT, () => console.log("ALEJANDRO FULL AUTO – 100% VIVO"));
