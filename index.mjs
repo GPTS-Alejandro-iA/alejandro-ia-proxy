@@ -8,54 +8,30 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// LEE TODO DESDE .env DE RENDER (100% garantizado)
+// VARIABLES DE RENDER (exactamente como las tienes)
 const {
   ASSISTANT_ID,
   OPENAI_API_KEY,
   HUBSPOT_API_KEY,
   EMAIL_USER,
   EMAIL_PASS,
-  COMPANY_NAME,
+  COMPANY_NAME = "Green Power Tech Store",
   PORT = 10000
 } = process.env;
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const sessions = new Map();
 
-// TRANSPORTER DE EMAIL (Gmail SMTP – funciona perfecto)
+// EMAIL CON GMAIL
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: { user: EMAIL_USER, pass: EMAIL_PASS }
 });
 
-async function enviarCotizacion({ name, email, phone, address, sistema, precio, enlace }) {
-  const html = `
-    <h2>¡Hola ${name.split(' ')[0]}! Gracias por confiar en ${COMPANY_NAME}</h2>
-    <p>Tu sistema recomendado es:</p>
-    <h3>${sistema} → $${Number(precio).toLocaleString()} instalado</h3>
-    <p><a href="${enlace}" style="background:#00d4aa;color:white;padding:15px 30px;text-decoration:none;border-radius:8px;font-size:18px;">COMPRAR AHORA 100% EN LÍNEA</a></p>
-    <p>O llámanos al <strong>787-699-2140</strong> para financiamiento o cheque.</p>
-    <p>¡Quedo a la orden!</p>
-    <p><strong>Alejandro</strong><br>${COMPANY_NAME}</p>
-  `;
-
-  await transporter.sendMail({
-    from: `"Alejandro - ${COMPANY_NAME}" <${EMAIL_USER}>`,
-    to: [email, EMAIL_USER], // cliente + copia a ti
-    subject: `¡${name.split(' ')[0]}! Aquí tienes tu cotización solar`,
-    html
-  });
-}
-
 app.post('/chat', async (req, res) => {
   const { message, sessionId } = req.body;
-
-  let threadId = sessions.get(sessionId);
-  if (!threadId) {
-    const thread = await openai.beta.threads.create();
-    threadId = thread.id;
-    sessions.set(sessionId, threadId);
-  }
+  let threadId = sessions.get(sessionId) || (await openai.beta.threads.create()).id;
+  sessions.set(sessionId, threadId);
 
   await openai.beta.threads.messages.create(threadId, { role: "user", content: message });
 
@@ -63,42 +39,40 @@ app.post('/chat', async (req, res) => {
 
   while (["queued", "in_progress", "requires_action"].includes(run.status)) {
     if (run.status === "requires_action") {
-      const toolCalls = run.required_action.submit_tool_outputs.tool_calls;
-
-      for (const tool of toolCalls) {
+      for (const tool of run.required_action.submit_tool_outputs.tool_calls) {
         if (tool.function.name === "send_lead") {
           const args = JSON.parse(tool.function.arguments);
 
-          // 1. ENVÍA A HUBSPOT
-          await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
-            method: 'POST',
+          // HUBSPOT
+          await fetch("https://api.hubapi.com/crm/v3/objects/contacts", {
+            method: "POST",
             headers: {
-              'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
-              'Content-Type': 'application/json'
+              "Authorization": `Bearer ${HUBSPOT_API_KEY}`,
+              "Content-Type": "application/json"
             },
             body: JSON.stringify({
               properties: {
-                firstname: args.name?.split(' ')[0] || '',
-                lastname: args.name?.split(' ').slice(1).join(' ') || '',
-                phone: args.phone || '',
-                email: args.email || '',
-                address: args.address || '',
-                lifecyclestage: 'lead',
-                company: COMPANY_NAME
+                firstname: args.name?.split(" ")[0] || "",
+                lastname: args.name?.split(" ").slice(1).join(" ") || "",
+                phone: args.phone || "",
+                email: args.email || "",
+                address: args.address || "",
+                lifecyclestage: "lead"
               }
             })
           });
 
-          // 2. ENVÍA EMAIL SI TIENE
-          if (args.email && args.email.includes('@')) {
-            await enviarCotizacion({
-              name: args.name || 'Cliente',
-              email: args.email,
-              phone: args.phone || '',
-              address: args.address || '',
-              sistema: args.sistema || 'Sistema Solar Personalizado',
-              precio: args.precio || 0,
-              enlace: args.enlace || 'https://greenpowertech.store'
+          // EMAIL AUTOMÁTICO
+          if (args.email?.includes("@")) {
+            await transporter.sendMail({
+              from: `"Alejandro - ${COMPANY_NAME}" <${EMAIL_USER}>`,
+              to: [args.email, EMAIL_USER],
+              subject: `¡${args.name?.split(" ")[0] || "Cliente"}! Tu cotización solar`,
+              html: `<h2>¡Hola ${args.name?.split(" ")[0] || "amigo"}!</h2>
+                     <p>Gracias por contactar a <strong>${COMPANY_NAME}</strong>.</p>
+                     <p>En breve te enviamos tu cotización personalizada.</p>
+                     <p>¡Quedo a la orden!</p>
+                     <p><strong>Alejandro</strong><br>787-699-2140</p>`
             });
           }
 
@@ -106,12 +80,12 @@ app.post('/chat', async (req, res) => {
         }
       }
 
-      const toolOutputs = toolCalls.map(t => ({
+      const outputs = run.required_action.submit_tool_outputs.tool_calls.map(t => ({
         tool_call_id: t.id,
         output: JSON.stringify({ success: true })
       }));
 
-      run = await openai.beta.threads.runs.submitToolOutputs(threadId, run.id, { tool_outputs: toolOutputs });
+      run = await openai.beta.threads.runs.submitToolOutputs(threadId, run.id, { tool_outputs: outputs });
     } else {
       await new Promise(r => setTimeout(r, 800));
       run = await openai.beta.threads.runs.retrieve(threadId, run.id);
@@ -123,6 +97,4 @@ app.post('/chat', async (req, res) => {
   res.json({ reply });
 });
 
-app.listen(PORT, () => {
-  console.log(`${COMPANY_NAME} - Alejandro 100% AUTOMÁTICO en puerto ${PORT}`);
-});
+app.listen(PORT, () => console.log(`${COMPANY_NAME} corriendo 100% en puerto ${PORT}`));
