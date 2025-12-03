@@ -60,9 +60,9 @@ app.post('/chat', async (req, res) => {
   }
 
   res.json({
-    reply: `Buenos días / Buenas tardes.\nSoy Alejandro de Green Power Tech Store.\n\nPara preparar su cotización personalizada y contactarlo de inmediato, necesito:\n• Nombre y apellidos\n• Teléfono de contacto\n\nPor favor envíelos y lo atenderemos en minutos.`
+    reply: `Para preparar su cotización personalizada y contactarlo de inmediato, necesito:\n• Nombre y apellidos\n• Teléfono de contacto\n\nPor favor envíelos y lo atenderemos en minutos.`
   });
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("BOT PROFESIONAL ACTIVO – LEADS 100% GARANTIZADOS"));
+app.listen(PORT, () => console.log("BOT PROFESIONAL ACTIVO – LEADS 100%"));
